@@ -16,12 +16,16 @@ From your worker project:
 
 ```sh
 bun add -d github:joeblew999/cf-deploy
+bun pm trust cf-deploy && bun install   # allow build script to run
+bun x cf-deploy --help
 ```
 
-This installs cf-deploy from GitHub and auto-builds the CLI via the `prepare` script. Then use it with:
+Bun blocks lifecycle scripts from git packages by default. `bun pm trust` whitelists cf-deploy so the `prepare` script can build the CLI. You only need to do this once — it's saved in your `package.json`.
+
+To remove:
 
 ```sh
-bun x cf-deploy --help
+bun remove cf-deploy
 ```
 
 ## What It Does
@@ -130,6 +134,7 @@ If you don't have an existing project:
 mkdir my-worker && cd my-worker
 bun init -y
 bun add -d github:joeblew999/cf-deploy wrangler
+bun pm trust cf-deploy && bun install
 bun x cf-deploy init --name my-worker
 bun x wrangler dev              # http://localhost:8788
 ```
