@@ -99,8 +99,12 @@ See [example/](example/) for a working setup.
 
 | | URL |
 |---|---|
-| App | https://cf-deploy-example.gedw99.workers.dev |
+| Production | https://cf-deploy-example.gedw99.workers.dev |
 | Health | https://cf-deploy-example.gedw99.workers.dev/api/health |
+| Versions manifest | https://cf-deploy-example.gedw99.workers.dev/versions.json |
+| Version picker | https://cf-deploy-example.gedw99.workers.dev/version-picker.js |
+| v1.1.0 alias | https://v1-1-0-cf-deploy-example.gedw99.workers.dev |
+| v1.0.0 alias | https://v1-0-0-cf-deploy-example.gedw99.workers.dev |
 
 ## Requirements
 
