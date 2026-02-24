@@ -31,3 +31,8 @@ export function whoami() {
 export function secretList(config: CfDeployConfig) {
   execSync("bun x wrangler secret list", { cwd: config.worker.dir, stdio: "inherit" });
 }
+
+export function deleteWorker(config: CfDeployConfig) {
+  console.log(`Deleting worker: ${config.worker.name}`);
+  execSync(`bun x wrangler delete --name ${config.worker.name}`, { cwd: config.worker.dir, stdio: "inherit" });
+}

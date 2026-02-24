@@ -1,2 +1,6 @@
 node_modules/
+bun.lockb
 .DS_Store
+.wrangler/
+example/bun.lock
+test-results/

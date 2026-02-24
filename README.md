@@ -6,30 +6,51 @@ Wraps `wrangler` with versioning conventions: tagged uploads, one-command promot
 
 ## Live Example
 
-This toolkit powers the deploy workflow for [truck-cad](https://github.com/joeblew999/plat-trunk):
+The [example/](example/) folder contains a complete, deployed Cloudflare Worker managed by cf-deploy:
 
 | What | URL |
 |------|-----|
-| **Production** | https://cad.ubuntusoftware.net |
-| **v0.7.0 preview** | https://v0-7-0-truck-cad.gedw99.workers.dev |
-| **v0.6.0 preview** | https://v0-6-0-truck-cad.gedw99.workers.dev |
-| **Health endpoint** | https://cad.ubuntusoftware.net/api/health |
-| **Versions manifest** | https://cad.ubuntusoftware.net/versions.json |
+| **Live app** | https://cf-deploy-example.gedw99.workers.dev |
+| **Health endpoint** | https://cf-deploy-example.gedw99.workers.dev/api/health |
+| **Versions manifest** | https://cf-deploy-example.gedw99.workers.dev/versions.json |
+| **v1.0.0 alias** | https://v1-0-0-cf-deploy-example.gedw99.workers.dev |
 
-The version picker dropdown (bottom of page) lets users switch between deployed versions, see PR previews, and link to GitHub releases — all from your own UI.
+Clone the repo and run it locally too:
+
+```sh
+cd example
+bun install
+bun x wrangler dev    # → http://localhost:8788
+```
 
 ## Why Not Just Use the Cloudflare Dashboard?
 
 The Cloudflare dashboard shows deployments, but:
 
-- **No PR preview URLs** — cf-deploy surfaces every `pr-N` preview directly in your app's UI
-- **No version switching** — the `<cf-version-picker>` dropdown lets users (and QA) jump between any deployed version
+- **No PR preview URLs in your app** — cf-deploy surfaces every `pr-N` preview directly in your own UI via the version picker
+- **No version switching for users** — the `<cf-version-picker>` dropdown lets users (and QA) jump between any deployed version
 - **No versions manifest** — `versions.json` is a machine-readable record of every deploy with git metadata, timestamps, and preview URLs
 - **No smoke tests** — cf-deploy runs health + index + custom checks before you promote
 - **No single-command promote** — `cf-deploy promote` reads versions.json and deploys the latest to 100% traffic
 - **Dashboard is per-worker** — cf-deploy config lives in your repo, versioned with your code
+- **Full lifecycle** — `cf-deploy delete` tears down the worker when you're done
 
 cf-deploy puts everything you need **in your own web GUI** rather than behind a separate dashboard login.
+
+## How Version Data Works
+
+All version metadata is **generated at dev/build time** and embedded as a static JSON file — zero runtime dependency on Cloudflare's API or infrastructure:
+
+1. `cf-deploy versions-json` queries wrangler + git locally and writes `versions.json` to your static assets
+2. `versions.json` is deployed alongside your app as a regular static file
+3. The `<cf-version-picker>` reads `versions.json` at page load — no API calls to Cloudflare at runtime
+4. Your app's `/api/health` endpoint returns the current version (you implement this)
+
+This means:
+- **Offline-capable** — version data works even if Cloudflare's dashboard is down
+- **Fast** — no API calls, just a static JSON fetch
+- **Auditable** — `versions.json` is in your git history
+- **Works locally** — `wrangler dev` serves the same static files on localhost
 
 ## Three Layers
 
@@ -55,7 +76,7 @@ bun .src/cf-deploy/bin/cf-deploy.ts smoke
 bun .src/cf-deploy/bin/cf-deploy.ts promote
 ```
 
-See [example/](example/) for a complete setup guide with task runner integration.
+See [example/](example/) for a complete working setup with Hono, static assets, and the version picker.
 
 ## Config: `cf-deploy.yml`
 
@@ -92,10 +113,12 @@ cf-deploy rollback                         Roll back to previous version
 cf-deploy canary                           Gradual traffic split (interactive)
 cf-deploy smoke [URL]                      Smoke test (health + index + custom)
 cf-deploy versions-json                    Generate versions.json manifest
+cf-deploy test [URL]                       Run Playwright tests against a URL
 cf-deploy preview --pr N                   Upload PR preview
 cf-deploy list                             Show all versions with URLs
 cf-deploy status                           Current deployment info
 cf-deploy versions                         Raw wrangler versions list
+cf-deploy delete                           Delete the Worker (full teardown)
 cf-deploy tail                             Tail live Worker logs
 cf-deploy secrets                          List Worker secrets
 cf-deploy whoami                           Cloudflare auth info
@@ -110,7 +133,7 @@ Zero-dependency vanilla Web Component. Copy `web/version-picker.js` to your web 
 <cf-version-picker></cf-version-picker>
 ```
 
-Fetches `/api/health` + `/versions.json`, renders a dropdown with all deployed versions, PR preview URLs, and links to production + GitHub releases. Uses light DOM — inherits your page's CSS (DaisyUI, Tailwind, or anything).
+Fetches `/api/health` + `/versions.json`, renders a dropdown with all deployed versions, PR preview URLs, and links to production + GitHub releases. Uses light DOM — inherits your page's CSS (DaisyUI, Tailwind, or anything). Works on localhost and production.
 
 ## Task Runner Integration
 

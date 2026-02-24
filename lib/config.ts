@@ -2,7 +2,7 @@
  * Config reader — loads cf-deploy.yml and merges with env var overrides.
  */
 import { existsSync, readFileSync } from "fs";
-import { join, resolve } from "path";
+import { dirname, join, resolve } from "path";
 import { execSync } from "child_process";
 
 export interface CfDeployConfig {
@@ -82,19 +82,28 @@ function parseSimpleYaml(text: string): Record<string, string> {
 
 /**
  * Load config from cf-deploy.yml + env var overrides.
- * Env vars take precedence over config file.
+ * Searches: explicit --config, then CWD, then git root.
+ * Relative paths in config resolve from the config file's directory.
  */
 export function loadConfig(configPath?: string): CfDeployConfig {
-  // Find config file first (may be specified or auto-detected)
-  const cwdRoot = findRoot();
+  const cwd = process.cwd();
+  const gitRoot = findRoot();
+
+  // Search for config: explicit path → CWD → git root
   const candidates = configPath
     ? [resolve(configPath)]
-    : [join(cwdRoot, "cf-deploy.yml"), join(cwdRoot, "cf-deploy.yaml")];
+    : [
+        join(cwd, "cf-deploy.yml"),
+        join(cwd, "cf-deploy.yaml"),
+        ...(cwd !== gitRoot ? [join(gitRoot, "cf-deploy.yml"), join(gitRoot, "cf-deploy.yaml")] : []),
+      ];
 
   let yaml: Record<string, string> = {};
+  let configDir = cwd; // base directory for resolving relative paths
   for (const p of candidates) {
     if (existsSync(p)) {
       yaml = parseSimpleYaml(readFileSync(p, "utf8"));
+      configDir = dirname(p);
       break;
     }
   }
@@ -103,20 +112,19 @@ export function loadConfig(configPath?: string): CfDeployConfig {
   const workerName = process.env.WORKER_NAME || yaml["worker.name"] || "my-worker";
   const workerDomain = process.env.WORKER_DOMAIN || yaml["worker.domain"] || "workers.dev";
   const workerDirRel = process.env.WORKER_DIR || yaml["worker.dir"] || ".";
+  const workerDir = resolve(configDir, workerDirRel);
 
-  // Resolve rootDir: prefer ROOT_DIR env, then try worker dir's git root, fallback to cwd git root
-  const workerDirResolved = resolve(cwdRoot, workerDirRel);
-  const rootDir = process.env.ROOT_DIR || (existsSync(workerDirResolved) ? findRoot(workerDirResolved) : cwdRoot);
-  const workerDir = resolve(rootDir, workerDirRel);
+  // rootDir: prefer ROOT_DIR env, then worker dir's git root, fallback to config dir
+  const rootDir = process.env.ROOT_DIR || findRoot(workerDir);
 
   const productionUrl = process.env.PRODUCTION_URL || yaml["urls.production"] || "";
   const githubRepo = process.env.GITHUB_REPO || yaml["github.repo"] || "";
 
   const versionSourceRel = process.env.SCHEMA_FILE || yaml["version.source"] || "package.json";
-  const versionSource = resolve(rootDir, versionSourceRel);
+  const versionSource = resolve(configDir, versionSourceRel);
 
   const outputRel = process.env.OUTPUT_FILE || yaml["output.versions_json"] || "versions.json";
-  const outputFile = resolve(rootDir, outputRel);
+  const outputFile = resolve(configDir, outputRel);
 
   const smokeExtra = process.env.SMOKE_EXTRA_CMD || yaml["smoke.extra"] || undefined;
 

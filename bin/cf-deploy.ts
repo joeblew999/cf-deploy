@@ -25,7 +25,8 @@ import { smoke } from "../lib/smoke.ts";
 import { generateVersionsJson, printLatest, printLatestEnv } from "../lib/versions.ts";
 import { preview } from "../lib/preview.ts";
 import { list } from "../lib/list.ts";
-import { rollback, canary, status, versionsList, tail, secretList, whoami } from "../lib/wrangler.ts";
+import { rollback, canary, status, versionsList, tail, secretList, whoami, deleteWorker } from "../lib/wrangler.ts";
+import { runTests } from "../lib/test.ts";
 
 const args = process.argv.slice(2);
 
@@ -76,6 +77,8 @@ Commands:
   list                             Show all versions with URLs
   status                           Show current deployment
   versions                         List recent versions (raw wrangler)
+  test [URL]                       Run Playwright tests against a URL
+  delete                           Delete the Worker (teardown)
   tail                             Tail live Worker logs
   secrets                          List Worker secrets
   whoami                           Show Cloudflare auth info
@@ -146,6 +149,14 @@ switch (command) {
 
   case "secrets":
     secretList(config);
+    break;
+
+  case "test":
+    runTests(config, getPositionalArg());
+    break;
+
+  case "delete":
+    deleteWorker(config);
     break;
 
   case "whoami":
