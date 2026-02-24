@@ -14,7 +14,7 @@ import {
 } from "./wrangler.ts";
 
 /** Copy version-picker.js into the worker's assets dir before upload. */
-function syncWebAssets(config: CfDeployConfig) {
+export function syncWebAssets(config: CfDeployConfig) {
   if (!existsSync(config.assetsDir)) {
     mkdirSync(config.assetsDir, { recursive: true });
   }

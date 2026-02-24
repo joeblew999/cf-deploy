@@ -3,6 +3,7 @@ import { execSync } from "child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "fs";
 import { join, resolve } from "path";
 import { loadConfig, readVersion } from "../../lib/config.ts";
+import { syncWebAssets } from "../../lib/deploy.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const DIST = join(ROOT, "dist", "cf-deploy.js");
@@ -95,6 +96,13 @@ describe("init command", () => {
 // --- Example project validation ---
 
 describe("example project", () => {
+  // Dogfood: use cf-deploy's own syncWebAssets to generate version-picker.js
+  // (the file is gitignored — this is idempotent and mirrors what `upload` does)
+  beforeAll(() => {
+    const cfg = loadConfig({ dir: EXAMPLE });
+    syncWebAssets(cfg);
+  });
+
   test("loadConfig reads example/wrangler.toml correctly", () => {
     const cfg = loadConfig({ dir: EXAMPLE });
     expect(cfg.name).toBe("cf-deploy-example");
@@ -115,10 +123,11 @@ describe("example project", () => {
     expect(src).toContain("APP_VERSION");
   });
 
-  test("example public/ has version-picker.js", () => {
-    expect(existsSync(join(EXAMPLE, "public", "version-picker.js"))).toBe(
-      true,
-    );
+  test("example public/ has version-picker.js with provenance header", () => {
+    const path = join(EXAMPLE, "public", "version-picker.js");
+    expect(existsSync(path)).toBe(true);
+    const content = readFileSync(path, "utf8");
+    expect(content.startsWith("// AUTO-GENERATED")).toBe(true);
   });
 
   test("example public/ has index.html with version-picker element", () => {

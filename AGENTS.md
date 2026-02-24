@@ -39,6 +39,7 @@ web/
 
 ## Rules
 
+- **Dogfood**: Tests must use cf-deploy's own code to generate artifacts (e.g. `syncWebAssets`), never assume gitignored files pre-exist. Tests should be idempotent — safe to run from a fresh clone or repeated locally.
 - No config file — everything comes from wrangler.toml, env vars, or CLI flags
 - Templates inlined via Bun text imports (`with { type: "text" }`) in deploy.ts and init.ts
 - Always use `wrangler()` helper — ensures consistent `--name` and cwd
