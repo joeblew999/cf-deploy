@@ -30,9 +30,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun run ci:build
 
-      - name: Deploy + E2E
+      - name: Deploy (integration tests with auth)
         if: env.CLOUDFLARE_API_TOKEN != ''
-        run: bun run ci:deploy && bun run ci:e2e
+        run: bun test
+
+      - name: E2E
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: bun run ci:e2e
 
       - if: env.CLOUDFLARE_API_TOKEN == ''
         run: echo "::notice::Skipping deploy — CLOUDFLARE_API_TOKEN not set"
