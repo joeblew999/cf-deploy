@@ -13,15 +13,13 @@ No config file needed — cf-deploy reads your existing `wrangler.toml` directly
 ## Install
 
 ```sh
-# Download the binary (macOS arm64 example)
-curl -fsSL https://github.com/joeblew999/cf-deploy/releases/latest/download/cf-deploy-macos-arm64 -o cf-deploy
-chmod +x cf-deploy
+# Clone and build
+git clone https://github.com/joeblew999/cf-deploy.git
+cd cf-deploy && bun install && bun run build-js
 
-# Or run via bun (no install)
-bun x github:joeblew999/cf-deploy --help
+# Use from your worker project
+bun /path/to/cf-deploy/dist/cf-deploy.js --help
 ```
-
-Binaries for Linux (x64/arm64) and macOS (x64/arm64) are on the [Releases](https://github.com/joeblew999/cf-deploy/releases) page.
 
 ## What It Does
 
