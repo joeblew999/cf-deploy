@@ -17,12 +17,10 @@ jobs:
       - name: Install deps
         run: cd example && bun install
 
-      - name: Build cf-deploy binary
+      - name: Build cf-deploy bundle
         run: |
           bun install
-          bun run build
-          chmod +x cf-deploy
-          echo "$(pwd)" >> $GITHUB_PATH
+          bun run build-js
 
       - name: Upload PR preview
         if: env.CLOUDFLARE_API_TOKEN != ''
@@ -31,20 +29,20 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          cf-deploy preview --pr ${{ github.event.pull_request.number }}
+          bun ../dist/cf-deploy.js preview --pr ${{ github.event.pull_request.number }}
           echo "url=https://pr-${{ github.event.pull_request.number }}-cf-deploy-example.gedw99.workers.dev" >> "$GITHUB_OUTPUT"
 
       - name: Smoke test PR preview
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
-        run: cf-deploy smoke "${{ steps.preview.outputs.url }}"
+        run: bun ../dist/cf-deploy.js smoke "${{ steps.preview.outputs.url }}"
 
       - name: Playwright tests against PR preview
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
         run: |
           bun x playwright install --with-deps chromium
-          cf-deploy test "${{ steps.preview.outputs.url }}"
+          bun ../dist/cf-deploy.js test "${{ steps.preview.outputs.url }}"
 
       - name: Inform missing token
         if: env.CLOUDFLARE_API_TOKEN == ''

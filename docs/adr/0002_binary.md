@@ -13,15 +13,14 @@ The current distribution method (cloning into `.src/cf-deploy/`) requires consum
 
 ## Decision
 
-Distribute `cf-deploy` as a **standalone compiled binary** via GitHub Releases.
-
-We will leverage Bun's native compilation capabilities (`bun build --compile`) to package the entire CLI, its dependencies, and any required templates into a single executable file.
+Distribute `cf-deploy` in two formats:
+1.  **Tiny JS Bundle (~40KB)**: The primary format for developers who already have Bun installed. Fast, lean, and easily run via `bun x`.
+2.  **Standalone Compiled Binary (~58MB)**: For "Zero-Bun" environments (like minimal CI containers). Leverages Bun's native compilation (`bun build --compile`) to package the entire CLI and runtime into a single executable.
 
 ## Implementation Strategy
 
 ### 1. Embedded Templates
-
-To ensure the binary is truly standalone, any "scaffolded" code or templates are embedded using Bun's "Text Imports". For example, the version picker component:
+To ensure both formats are truly standalone, any scaffolded code or templates are embedded using Bun's "Text Imports". This ensures the tool carries its own assets regardless of its location on disk.
 
 ```typescript
 import versionPickerSource from "../web/version-picker.js" with { type: "text" };
@@ -29,42 +28,36 @@ import versionPickerSource from "../web/version-picker.js" with { type: "text" }
 writeFileSync(join(cwd, "public", "version-picker.js"), versionPickerSource);
 ```
 
-### 2. Compilation
-
-The binary will be built using the following command:
-
-```bash
-bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile cf-deploy
-```
+### 2. Compilation & Bundling
+- **JS Bundle**: `bun build ./bin/cf-deploy.ts --outfile dist/cf-deploy.js --target bun --bundle`
+- **Binary**: `bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile cf-deploy`
 
 ### 3. Distribution
-
-Binaries for different architectures (Linux, macOS) will be attached as assets to GitHub Releases.
+Both formats will be attached as assets to GitHub Releases.
 
 ## Consequences
 
-- **Zero Installation**: Users can download a single file and run it immediately.
-- **Improved Performance**: Pre-compiled bytecode starts faster than parsing TypeScript source on every execution.
-- **Decoupled Versioning**: Users can pin to a specific release version by downloading that specific binary, without affecting their git history.
-- **Cross-Platform**: Requires a build pipeline to generate binaries for multiple targets (e.g., `x64-linux`, `arm64-darwin`).
+- **Developer Efficiency**: Bun users get a near-instant, tiny tool.
+- **Zero Installation**: Non-Bun users can download a single file and run it immediately.
+- **Improved Performance**: Pre-compiled bytecode or bundled JS starts faster than parsing multiple TypeScript files.
+- **Cross-Platform**: Standing binaries require a build pipeline for multiple targets (e.g., `x64-linux`, `arm64-darwin`).
 
 ## Alternatives Considered
 
-| Alternative              | Why not                                                                                                      |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| **Tarball via GitHub**   | Requires `bun add <url>`, still depends on `node_modules` and local Bun runtime for execution.               |
-| **npm Registry**         | Introduces dependency on a third-party registry and publish overhead.                                        |
-| **Current Clone Method** | Retained as an option for developers who want to modify the tool, but binary is preferred for general usage. |
+| Alternative | Why not |
+|-------------|---------|
+| **NPM Registry** | While standard, `bun x` from a GitHub-hosted bundle is often faster and avoids registry overhead. |
+| **Source Only** | Requires Bun + manages source complexity for the consumer. |
 
 ## Consumer Usage
 
-The tool is installed via a one-line shell script that detects the platform and downloads the correct binary from GitHub:
-
+### For Bun Users (Preferred)
 ```bash
-# Download and install
-curl -sSL https://raw.githubusercontent.com/joeblew999/cf-deploy/main/install.sh | bash
-sudo mv cf-deploy /usr/local/bin/cf-deploy
+bun x cf-deploy init ...
+```
 
-# Initialize a project
-cf-deploy init --name my-worker --domain example.workers.dev
+### For Non-Bun Users
+```bash
+curl -sSL https://raw.githubusercontent.com/joeblew999/cf-deploy/main/install.sh | bash
+./cf-deploy init ...
 ```
