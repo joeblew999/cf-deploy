@@ -14,8 +14,9 @@ const EXAMPLE_SRC = join(ROOT, "example");
 const FROM_SCRATCH_SRC = join(ROOT, "examples", "from-scratch");
 const EXISTING_WORKER_SRC = join(ROOT, "examples", "existing-worker");
 
-// Working copies (tests run against these, deleted after)
-const TMP = join(import.meta.dir, ".tmp-integration");
+// Working copies in /tmp (tests run against these, deleted after)
+// Using /tmp avoids bun workspace resolution issues
+const TMP = join("/tmp", "cf-deploy-integration-test");
 const EXAMPLE = join(TMP, "example");
 const FROM_SCRATCH = join(TMP, "from-scratch");
 const EXISTING_WORKER = join(TMP, "existing-worker");
@@ -24,9 +25,13 @@ const INIT_DIR = join(TMP, "init-test");
 const run = (cmd: string, cwd = ROOT) =>
   execSync(cmd, { cwd, encoding: "utf8", stdio: "pipe" });
 
-/** Copy an example dir to a working location (including node_modules). */
+/** Copy an example dir to /tmp working location, install deps. */
 function copyExample(src: string, dest: string) {
-  cpSync(src, dest, { recursive: true });
+  cpSync(src, dest, {
+    recursive: true,
+    filter: (s) => !s.includes("node_modules"),
+  });
+  run("bun install", dest);
 }
 
 // Full teardown → setup: clean everything, build fresh, copy examples
