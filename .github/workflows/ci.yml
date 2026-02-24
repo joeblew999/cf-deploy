@@ -24,7 +24,7 @@ jobs:
         run: bun run build-all
 
       - name: Run Unit Tests
-        run: bun test
+        run: bun test tests/
 
       - name: Run Local Verification
         run: ./scripts/test-local.sh
