@@ -1,37 +1,92 @@
 # Agent Instructions (cf-deploy)
 
-This file serves as the "source of truth" for AI agents working on this repository.
+Source of truth for AI agents working on this repository.
 
-## Development Workflow
+## What This Is
 
-1.  **Modify**: Apply changes to `lib/`, `bin/`, or `web/`.
-2.  **Test Locally**: Run `./scripts/test-local.sh`. This verifies the bundle, template inlining, and scaffolding without polluting your OS.
-3.  **Comprehensive Check**: Run `./scripts/test-example.sh` if you have Cloudflare credentials. This verifies the full upload/promote/rollback lifecycle.
-4.  **Commit & Push**: Commit with descriptive messages.
-5.  **Watch CI**: Immediately use the GitHub CLI (`gh`) to monitor the Actions:
-    - Run `gh run watch` to follow the progress live.
-    - Run `gh run list --limit 5` to see the recent history.
-    - Run `gh run view <ID> --log` if a job fails to diagnose the error.
-    - Workflows to watch: `ci.yml` (build/test), `deploy.yml` (production), `pr-preview.yml`.
-6.  **Verify Web**: Check the live state at:
-    - Production: https://cf-deploy-example.gedw99.workers.dev
-    - Health: https://cf-deploy-example.gedw99.workers.dev/api/health
-    - Manifest: https://cf-deploy-example.gedw99.workers.dev/versions.json
+A CLI tool that wraps `wrangler` with versioning conventions. It adds: tagged uploads with preview URLs, a versions.json manifest, smoke tests, and a version-picker web component. The user's worker code stays normal — cf-deploy only manages the deploy lifecycle.
 
-## Distribution Logic
+## How It Works (data flow)
 
-- **Primary**: Tiny JS Bundle (`dist/cf-deploy.js`). Used via `bun x cf-deploy`.
-- **Secondary**: Standalone Binary (`cf-deploy`). For environments without Bun.
-- **Verification**: Always test using the JS bundle (`bun dist/cf-deploy.js`) to ensure inlined assets work correctly.
+```
+package.json (version: "1.2.0")
+      │
+      ▼
+cf-deploy upload ──► wrangler versions upload --tag v1.2.0 --preview-alias v1-2-0
+      │                       │
+      │                       ▼
+      │               Cloudflare (stores version with tag + alias URL)
+      │
+      ▼
+cf-deploy versions-json ──► queries wrangler + git
+      │                       │
+      │                       ▼
+      │               public/versions.json (manifest of all versions + git metadata)
+      │
+      ▼
+cf-deploy upload (again) ──► re-uploads with versions.json now in static assets
+      │
+      ▼
+cf-deploy promote ──► reads versions.json, calls wrangler versions deploy <id>@100%
+```
 
-## Project Constants
+The double upload→versions-json→upload→versions-json cycle exists because:
+1. First upload creates the version on Cloudflare (gets a versionId)
+2. versions-json queries Cloudflare for that versionId and writes the manifest
+3. Second upload includes the manifest in the static assets
+4. Second versions-json captures the final versionId
 
-- **Inlined Assets**: All templates must be inlined in `lib/upload.ts` and `lib/init.ts` using Bun's text imports (`with { type: "text" }`).
-- **Wrangler Wrapper**: Always use the `wrangler()` helper in `lib/wrangler.ts` to ensure consistent `--name` and directory handling.
-- **Naming**: All preview alias slugs must be `.toLowerCase()` to prevent Cloudflare API errors.
+## Codebase Layout
 
-## To-Do / Maintenance
+```
+bin/cf-deploy.ts      CLI entry point (arg parsing → calls lib functions)
+lib/
+  config.ts           Reads cf-deploy.yml + env var overrides → CfDeployConfig
+  types.ts            Shared interfaces (Release, Preview, VersionsJson) + provenance constants
+  manifest.ts         Shared helpers: loadVersionsJson, checkHealth, resolveTargetUrl
+  wrangler.ts         Wrangler execution, URL construction, version parsing, passthrough commands
+  versions.ts         Reads app version from package.json, generates versions.json
+  deploy.ts           Upload, preview, promote, list, deploy workflow
+  smoke.ts            Smoke tests (health+index) and Playwright test runner
+  init.ts             Project scaffolding (creates cf-deploy.yml, wrangler.toml, src/, public/)
+web/
+  version-picker.js   Source of the web component (auto-copied to worker's public/ on upload)
+```
 
-- [ ] Monitor `wrangler` updates and ensure compatibility.
-- [ ] Keep `install.sh` in sync with the release workflow patterns.
-- [ ] Ensure the version picker component remains zero-dependency.
+### Why manifest.ts is separate
+
+`manifest.ts` exists to break a circular dependency: `wrangler.ts` (rollback) and `versions.ts` (generate) both need `loadVersionsJson`, but `versions.ts` needs `wrangler.ts` for `fetchWranglerVersions`. Putting `loadVersionsJson` in either file would create a cycle.
+
+### How version-picker.js flows
+
+```
+web/version-picker.js (source, checked into git)
+      │
+      ├─► deploy.ts:upload() calls syncWebAssets() which copies it to the worker's public/ dir
+      │   with a provenance header prepended
+      │
+      └─► init.ts:init() copies it when scaffolding a new project
+```
+
+The copy in `example/public/version-picker.js` is gitignored — it's regenerated on every upload.
+
+## Development
+
+1. Edit files in `lib/`, `bin/`, or `web/`
+2. `bun run build-js` — builds the bundle
+3. `bun test tests/urls.test.ts` — unit tests
+4. `./scripts/test-local.sh` — integration test (bundle + init scaffolding)
+5. `./scripts/test-example.sh` — full lifecycle test (needs Cloudflare credentials)
+
+## CI Workflows
+
+- `ci.yml` — build + test on every push/PR, deploy example on push to main
+- `pr-preview.yml` — upload PR preview + comment URL on PR
+- `release.yml` — cross-compile binaries + create GitHub release on tags
+
+## Rules
+
+- All templates inlined via Bun text imports (`with { type: "text" }`) in `deploy.ts` and `init.ts`
+- Always use the `wrangler()` helper in `wrangler.ts` — ensures consistent `--name` and cwd
+- All preview alias slugs must be `.toLowerCase()` (Cloudflare API requirement)
+- Version-picker component must stay zero-dependency vanilla JS

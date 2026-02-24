@@ -9,50 +9,44 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    defaults:
+      run:
+        working-directory: example
     steps:
       - uses: actions/checkout@v4
-
       - uses: oven-sh/setup-bun@v2
 
-      - name: Install deps
-        run: cd example && bun install
+      - name: Build toolkit
+        working-directory: .
+        run: bun install && bun run build-js
 
-      - name: Build cf-deploy bundle
-        run: |
-          bun install
-          bun run build-js
+      - name: Install example deps
+        run: bun install
 
       - name: Upload PR preview
         if: env.CLOUDFLARE_API_TOKEN != ''
         id: preview
-        working-directory: example
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           bun ../dist/cf-deploy.js preview --pr ${{ github.event.pull_request.number }}
           echo "url=https://pr-${{ github.event.pull_request.number }}-cf-deploy-example.gedw99.workers.dev" >> "$GITHUB_OUTPUT"
 
-      - name: Smoke test PR preview
+      - name: Smoke + Playwright tests
         if: env.CLOUDFLARE_API_TOKEN != ''
-        working-directory: example
-        run: bun ../dist/cf-deploy.js smoke "${{ steps.preview.outputs.url }}"
-
-      - name: Playwright tests against PR preview
-        if: env.CLOUDFLARE_API_TOKEN != ''
-        working-directory: example
         run: |
+          bun ../dist/cf-deploy.js smoke "${{ steps.preview.outputs.url }}"
           bun x playwright install --with-deps chromium
           bun ../dist/cf-deploy.js test "${{ steps.preview.outputs.url }}"
 
-      - name: Inform missing token
-        if: env.CLOUDFLARE_API_TOKEN == ''
-        run: echo "Skipping PR preview because CLOUDFLARE_API_TOKEN is not set."
+      - if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::notice::Skipping PR preview — CLOUDFLARE_API_TOKEN not set"
 
       - name: Comment preview URL on PR
+        if: env.CLOUDFLARE_API_TOKEN != ''
         uses: actions/github-script@v7
         with:
           script: |
-            const prNum = context.payload.pull_request.number;
             const url = `${{ steps.preview.outputs.url }}`;
             const sha = context.sha.slice(0, 7);
             const body = [
@@ -62,10 +56,10 @@ jobs:
               `|---|---|`,
               `| **URL** | ${url} |`,
               `| **Commit** | [\`${sha}\`](${context.payload.pull_request.head.repo.html_url}/commit/${context.sha}) |`,
-              `| **Status** | Smoke tests and Playwright tests passed |`,
+              `| **Status** | Smoke + Playwright tests passed |`,
             ].join('\n');
             const { data: comments } = await github.rest.issues.listComments({
-              ...context.repo, issue_number: prNum
+              ...context.repo, issue_number: context.payload.pull_request.number
             });
             const existing = comments.find(c => c.body?.includes('Preview deployed'));
             if (existing) {
@@ -74,6 +68,6 @@ jobs:
               });
             } else {
               await github.rest.issues.createComment({
-                ...context.repo, issue_number: prNum, body
+                ...context.repo, issue_number: context.payload.pull_request.number, body
               });
             }

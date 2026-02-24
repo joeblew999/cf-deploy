@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { versionAliasUrl } from "../lib/urls.ts";
+import { versionAliasUrl } from "../lib/wrangler.ts";
 
 test("versionAliasUrl lowercases and replaces dots", () => {
   const config: any = {

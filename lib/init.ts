@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import versionPickerSource from "../web/version-picker.js" with { type: "text" };
+import { VERSION_PICKER_PROVENANCE } from "./types.ts";
 
 export function init(name: string, domain: string) {
   const cwd = process.cwd();
@@ -85,7 +86,7 @@ export default app;
   mkdirSync(join(cwd, "public"), { recursive: true });
 
   // Write version-picker.js (embedded in binary)
-  writeFileSync(join(cwd, "public", "version-picker.js"), versionPickerSource);
+  writeFileSync(join(cwd, "public", "version-picker.js"), VERSION_PICKER_PROVENANCE + versionPickerSource);
 
   // index.html
   if (!existsSync(join(cwd, "public/index.html"))) {

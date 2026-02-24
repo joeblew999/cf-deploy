@@ -20,17 +20,13 @@
  */
 
 import { loadConfig } from "../lib/config.ts";
-import { deploy } from "../lib/deploy.ts";
-import { upload } from "../lib/upload.ts";
-import { promote } from "../lib/promote.ts";
-import { smoke } from "../lib/smoke.ts";
+import { deploy, upload, promote, preview, list } from "../lib/deploy.ts";
+import { smoke, runTests } from "../lib/smoke.ts";
 import {
   generateVersionsJson,
   printLatest,
   printLatestEnv,
 } from "../lib/versions.ts";
-import { preview } from "../lib/preview.ts";
-import { list } from "../lib/list.ts";
 import {
   rollback,
   canary,
@@ -41,7 +37,6 @@ import {
   whoami,
   deleteWorker,
 } from "../lib/wrangler.ts";
-import { runTests } from "../lib/test.ts";
 import { init } from "../lib/init.ts";
 import pkg from "../package.json";
 

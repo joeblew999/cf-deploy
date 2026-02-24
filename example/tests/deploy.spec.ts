@@ -21,6 +21,7 @@ test("/versions.json is valid manifest", async ({ request }) => {
   const res = await request.get("/versions.json");
   expect(res.ok()).toBeTruthy();
   const data = await res.json();
+  expect(data._provenance).toContain("cf-deploy");
   expect(data.production).toBeTruthy();
   expect(data.generated).toBeTruthy();
   expect(Array.isArray(data.versions)).toBeTruthy();

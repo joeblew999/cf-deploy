@@ -1,49 +1,69 @@
 /**
  * Generate versions.json manifest from wrangler + git metadata.
+ * Also reads the app version from the configured source file.
  */
 import { execSync } from "child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname } from "path";
 import type { CfDeployConfig } from "./config.ts";
-import { getAppVersion, getCommandCount } from "./version-source.ts";
 import type { GitInfo, Preview, Release, VersionsJson } from "./types.ts";
-import { fetchWranglerVersions } from "./wrangler-versions.ts";
-import { workerUrl, versionAliasUrl } from "./urls.ts";
+import { VERSIONS_JSON_PROVENANCE } from "./types.ts";
+import {
+  fetchWranglerVersions,
+  workerUrl,
+  versionAliasUrl,
+} from "./wrangler.ts";
+import { checkHealth, loadVersionsJson } from "./manifest.ts";
 
-/** Check health of a URL */
-async function checkHealth(url: string): Promise<boolean> {
+// --- Version source ---
+
+export function getAppVersion(config: CfDeployConfig): string {
+  if (process.env.APP_VERSION) return process.env.APP_VERSION;
+
+  const path = config.version.source;
+  if (!existsSync(path)) return "0.0.0";
+
   try {
-    const res = await fetch(`${url}/api/health`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    return res.ok;
+    const data = JSON.parse(readFileSync(path, "utf8"));
+    return data.version || "0.0.0";
   } catch {
-    return false;
+    return "0.0.0";
   }
 }
 
+export function getCommandCount(config: CfDeployConfig): number | undefined {
+  const path = config.version.source;
+  if (!existsSync(path)) return undefined;
+
+  try {
+    const data = JSON.parse(readFileSync(path, "utf8"));
+    if (data.commands) return Object.keys(data.commands).length;
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// --- versions.json query helpers ---
+
 /** Print latest version as JSON (--latest mode) */
 export function printLatest(config: CfDeployConfig) {
-  const data: VersionsJson = JSON.parse(
-    readFileSync(config.output.versions_json, "utf8"),
-  );
+  const data = loadVersionsJson(config);
   const latest = data.versions[0];
   if (!latest) {
     console.error("No versions found in versions.json");
-    process.exit(1);
+    return process.exit(1);
   }
   console.log(JSON.stringify(latest));
 }
 
 /** Print latest version as shell-eval-able vars (--latest-env mode) */
 export function printLatestEnv(config: CfDeployConfig) {
-  const data: VersionsJson = JSON.parse(
-    readFileSync(config.output.versions_json, "utf8"),
-  );
+  const data = loadVersionsJson(config);
   const latest = data.versions[0];
   if (!latest) {
     console.error("No versions found in versions.json");
-    process.exit(1);
+    return process.exit(1);
   }
   console.log(`VERSION_ID="${latest.versionId}"`);
   console.log(`VERSION="${latest.version}"`);
@@ -56,7 +76,8 @@ export function printLatestEnv(config: CfDeployConfig) {
   console.log(`ALIAS_URL="${latest.url}"`);
 }
 
-/** Generate versions.json */
+// --- Generate versions.json ---
+
 export async function generateVersionsJson(
   config: CfDeployConfig,
   opts?: { healthCheck?: boolean },
@@ -99,9 +120,7 @@ export async function generateVersionsJson(
   const existingGit: Map<string, { git?: GitInfo; commandCount?: number }> =
     new Map();
   try {
-    const prev: VersionsJson = JSON.parse(
-      readFileSync(config.output.versions_json, "utf8"),
-    );
+    const prev = loadVersionsJson(config);
     for (const r of prev.versions) {
       if (r.git)
         existingGit.set(r.version, {
@@ -173,10 +192,11 @@ export async function generateVersionsJson(
     console.log("Health-checking preview URLs...");
     await Promise.all([
       ...deduped.map(async (r) => {
-        if (r.previewUrl) r.healthy = await checkHealth(r.previewUrl);
+        if (r.previewUrl)
+          r.healthy = (await checkHealth(r.previewUrl)) !== null;
       }),
       ...previews.map(async (p) => {
-        p.healthy = await checkHealth(p.url);
+        p.healthy = (await checkHealth(p.url)) !== null;
       }),
     ]);
     const healthyCount =
@@ -188,6 +208,7 @@ export async function generateVersionsJson(
   }
 
   const out: VersionsJson = {
+    _provenance: VERSIONS_JSON_PROVENANCE,
     production: config.urls.production,
     github: config.github.repo
       ? `https://github.com/${config.github.repo}`

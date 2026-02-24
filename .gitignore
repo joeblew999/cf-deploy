@@ -1,14 +1,16 @@
 node_modules/
-bun.lockb
 .DS_Store
 .wrangler/
-example/bun.lock
-example/public/version-picker.js
 test-results/
+tmp_*/
+
+# Build outputs
 dist/
 cf-deploy
 .*.bun-build
-*.yml
-*.toml
-public/
-src/
+bun.lockb
+
+# Auto-generated files (created by cf-deploy commands)
+example/bun.lock
+example/public/version-picker.js
+example/public/versions.json

@@ -1,26 +1,11 @@
 /**
- * Smoke test a deployed URL — health + index + optional project-specific checks.
+ * Smoke test and Playwright test runner for deployed URLs.
  */
 import { execSync } from "child_process";
-import { readFileSync } from "fs";
 import type { CfDeployConfig } from "./config.ts";
-import type { VersionsJson } from "./types.ts";
+import { checkHealth, resolveTargetUrl } from "./manifest.ts";
 
-async function checkHealth(url: string): Promise<string> {
-  try {
-    const res = await fetch(`${url}/api/health`, {
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = (await res.json()) as { version?: string };
-    const version = body.version || "?";
-    console.log(`  health:    OK (v${version})`);
-    return version;
-  } catch (e: any) {
-    console.error(`  FAIL: /api/health unreachable (${e.message || e})`);
-    process.exit(1);
-  }
-}
+// --- Smoke test ---
 
 async function checkIndex(url: string) {
   try {
@@ -48,35 +33,24 @@ function runExtraChecks(config: CfDeployConfig, url: string) {
 }
 
 export async function smoke(config: CfDeployConfig, urlArg?: string) {
-  let url = urlArg;
-  let expectedVersion: string | undefined;
-
-  if (!url) {
-    try {
-      const data: VersionsJson = JSON.parse(
-        readFileSync(config.output.versions_json, "utf8"),
-      );
-      const latest = data.versions[0];
-      if (latest) {
-        url = latest.url;
-        expectedVersion = latest.version;
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  url = url || config.urls.production;
-  if (!url) {
+  const resolved = resolveTargetUrl(config, urlArg);
+  if (!resolved) {
     console.error(
       "ERROR: No URL to smoke test. Pass a URL or set urls.production in cf-deploy.yml",
     );
-    process.exit(1);
+    return process.exit(1);
   }
 
+  const { url, expectedVersion } = resolved;
   console.log(`Smoke testing: ${url}\n`);
 
-  const healthVersion = await checkHealth(url);
+  const healthVersion = await checkHealth(url, 10_000);
+  if (!healthVersion) {
+    console.error(`  FAIL: /api/health unreachable`);
+    process.exit(1);
+  }
+  console.log(`  health:    OK (v${healthVersion})`);
+
   await checkIndex(url);
   runExtraChecks(config, url);
 
@@ -90,4 +64,23 @@ export async function smoke(config: CfDeployConfig, urlArg?: string) {
   } else {
     console.log(`PASS: All checks passed (v${healthVersion})`);
   }
+}
+
+// --- Playwright tests ---
+
+export function runTests(config: CfDeployConfig, urlArg?: string) {
+  const resolved = resolveTargetUrl(config, urlArg);
+  if (!resolved) {
+    console.error(
+      "ERROR: No URL to test. Pass a URL or set urls.production in cf-deploy.yml",
+    );
+    return process.exit(1);
+  }
+
+  console.log(`Running Playwright tests against: ${resolved.url}\n`);
+  execSync(`bun x playwright test`, {
+    cwd: config.worker.dir,
+    stdio: "inherit",
+    env: { ...process.env, TARGET_URL: resolved.url },
+  });
 }
