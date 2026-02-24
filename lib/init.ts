@@ -157,8 +157,8 @@ export default app;
   console.log(
     `  bun x wrangler dev           # local dev at http://localhost:8788`,
   );
-  console.log(`  cf-deploy upload --version 1.0.0`);
-  console.log(`  cf-deploy versions-json`);
-  console.log(`  cf-deploy smoke`);
-  console.log(`  cf-deploy promote`);
+  console.log(`  bun x cf-deploy upload --version 1.0.0`);
+  console.log(`  bun x cf-deploy versions-json`);
+  console.log(`  bun x cf-deploy smoke`);
+  console.log(`  bun x cf-deploy promote`);
 }

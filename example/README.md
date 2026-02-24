@@ -31,31 +31,31 @@ The version picker works on localhost too — it detects `localhost` and shows "
 
 ```sh
 # Upload a new version (does NOT go to production)
-cf-deploy upload --version 1.0.0
+bun x cf-deploy upload --version 1.0.0
 
 # Generate versions.json manifest
-cf-deploy versions-json
+bun x cf-deploy versions-json
 
 # Smoke test the preview URL
-cf-deploy smoke
+bun x cf-deploy smoke
 
 # Promote to production (100% traffic)
-cf-deploy promote
+bun x cf-deploy promote
 
 # View all deployed versions
-cf-deploy list
+bun x cf-deploy list
 
 # Tear down the worker entirely
-cf-deploy delete
+bun x cf-deploy delete
 ```
 
 ## How It Works
 
-1. `cf-deploy upload` wraps `wrangler versions upload` with version tagging and preview aliases
-2. `cf-deploy versions-json` queries wrangler + git to generate a static `versions.json`
+1. `bun x cf-deploy upload` wraps `wrangler versions upload` with version tagging and preview aliases
+2. `bun x cf-deploy versions-json` queries wrangler + git to generate a static `versions.json`
 3. `versions.json` is deployed as a static asset alongside your app
 4. The `<cf-version-picker>` reads it at page load — no API calls to Cloudflare at runtime
-5. `cf-deploy promote` reads `versions.json` to find the latest versionId and deploys it
+5. `bun x cf-deploy promote` reads `versions.json` to find the latest versionId and deploys it
 
 ## Task Runner Integration
 
@@ -64,20 +64,20 @@ cf-deploy delete
 ```yaml
 tasks:
   "cf:upload":
-    cmds: [cf-deploy upload]
+    cmds: [bun x cf-deploy upload]
   "cf:promote":
-    cmds: [cf-deploy promote]
+    cmds: [bun x cf-deploy promote]
   "cf:smoke":
-    cmds: [cf-deploy smoke]
+    cmds: [bun x cf-deploy smoke]
 ```
 
-### npm scripts
+### Bun / NPM scripts
 
 ```json
 {
   "scripts": {
-    "deploy:upload": "cf-deploy upload",
-    "deploy:promote": "cf-deploy promote"
+    "deploy:upload": "bun x cf-deploy upload",
+    "deploy:promote": "bun x cf-deploy promote"
   }
 }
 ```
@@ -85,7 +85,7 @@ tasks:
 ### Makefile
 
 ```makefile
-CF = cf-deploy
+CF = bun x cf-deploy
 upload:  ; $(CF) upload
 promote: ; $(CF) promote
 smoke:   ; $(CF) smoke

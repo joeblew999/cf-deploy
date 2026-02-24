@@ -235,6 +235,6 @@ See [docs/adr/](docs/adr/) for the full design rationale.
 
 ## Requirements
 
-- **cf-deploy binary**: Downloaded from GitHub Releases (no runtime dependency).
-- **wrangler**: Installed in your worker project (via `npm install wrangler` or `bun add wrangler`).
-- **Node.js or Bun**: To run `wrangler` within your project.
+- **Bun**: (Recommended) To run the toolkit via `bun x` or the JS bundle.
+- **wrangler**: Installed in your worker project (via `bun add wrangler`).
+- **Binary (Optional)**: If you don't have Bun, you can use the standalone binary from GitHub Releases.

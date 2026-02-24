@@ -18,6 +18,12 @@ This file serves as the "source of truth" for AI agents (like Gemini) working on
     - Health: https://cf-deploy-example.gedw99.workers.dev/api/health
     - Manifest: https://cf-deploy-example.gedw99.workers.dev/versions.json
 
+## 📦 Distribution Logic
+
+- **Primary**: Tiny JS Bundle (`dist/cf-deploy.js`). Used via `bun x cf-deploy`.
+- **Secondary**: Standalone Binary (`cf-deploy`). For environments without Bun.
+- **Verification**: Always test using the JS bundle (`bun dist/cf-deploy.js`) to ensure inlined assets work correctly.
+
 ## 🛠 Project Constants
 
 - **Inlined Assets**: All templates must be inlined in `lib/upload.ts` and `lib/init.ts` using Bun's text imports (`with { type: "text" }`).
