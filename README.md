@@ -1,8 +1,12 @@
 # cf-deploy
 
+[![GitHub](https://img.shields.io/github/stars/joeblew999/cf-deploy?style=flat&logo=github)](https://github.com/joeblew999/cf-deploy)
+
 Reusable Cloudflare Workers deploy toolkit — **CLI + versions manifest + version picker web component**.
 
 Wraps `wrangler` with versioning conventions: tagged uploads, one-command promote, smoke tests, rollback, versions.json manifest, and a zero-dependency version picker UI component.
+
+**GitHub**: https://github.com/joeblew999/cf-deploy
 
 ## Live Example
 
