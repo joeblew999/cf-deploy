@@ -1,8 +1,8 @@
 # Agent Instructions (cf-deploy)
 
-This file serves as the "source of truth" for AI agents (like Gemini) working on this repository.
+This file serves as the "source of truth" for AI agents working on this repository.
 
-## 🚀 Development Workflow
+## Development Workflow
 
 1.  **Modify**: Apply changes to `lib/`, `bin/`, or `web/`.
 2.  **Test Locally**: Run `./scripts/test-local.sh`. This verifies the bundle, template inlining, and scaffolding without polluting your OS.
@@ -18,19 +18,19 @@ This file serves as the "source of truth" for AI agents (like Gemini) working on
     - Health: https://cf-deploy-example.gedw99.workers.dev/api/health
     - Manifest: https://cf-deploy-example.gedw99.workers.dev/versions.json
 
-## 📦 Distribution Logic
+## Distribution Logic
 
 - **Primary**: Tiny JS Bundle (`dist/cf-deploy.js`). Used via `bun x cf-deploy`.
 - **Secondary**: Standalone Binary (`cf-deploy`). For environments without Bun.
 - **Verification**: Always test using the JS bundle (`bun dist/cf-deploy.js`) to ensure inlined assets work correctly.
 
-## 🛠 Project Constants
+## Project Constants
 
 - **Inlined Assets**: All templates must be inlined in `lib/upload.ts` and `lib/init.ts` using Bun's text imports (`with { type: "text" }`).
 - **Wrangler Wrapper**: Always use the `wrangler()` helper in `lib/wrangler.ts` to ensure consistent `--name` and directory handling.
 - **Naming**: All preview alias slugs must be `.toLowerCase()` to prevent Cloudflare API errors.
 
-## 📝 To-Do / Maintenance
+## To-Do / Maintenance
 
 - [ ] Monitor `wrangler` updates and ensure compatibility.
 - [ ] Keep `install.sh` in sync with the release workflow patterns.
