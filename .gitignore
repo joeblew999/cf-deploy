@@ -7,3 +7,8 @@ example/public/version-picker.js
 test-results/
 dist/
 cf-deploy
+.*.bun-build
+*.yml
+*.toml
+public/
+src/
