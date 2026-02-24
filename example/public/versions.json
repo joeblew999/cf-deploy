@@ -1,23 +1,46 @@
 {
   "production": "https://cf-deploy-example.gedw99.workers.dev",
   "github": "https://github.com/joeblew999/cf-deploy",
-  "generated": "2026-02-24T03:19:44.915Z",
+  "generated": "2026-02-24T03:33:15.303Z",
   "versions": [
+    {
+      "version": "1.1.0",
+      "tag": "v1.1.0",
+      "date": "2026-02-24T03:33:05.067Z",
+      "versionId": "6a36321e-03dc-42c4-a657-459ae8e350a7",
+      "url": "https://v1-1-0-cf-deploy-example.gedw99.workers.dev",
+      "previewUrl": "https://6a36321e-03dc-42c4-a657-459ae8e350a7-cf-deploy-example.gedw99.workers.dev",
+      "git": {
+        "commitSha": "eb9b417",
+        "commitFull": "eb9b4170f98457684955f5076163da1a78268347",
+        "commitMessage": "chore: bump example to v1.1.0 for multi-version testing",
+        "branch": "main",
+        "commitUrl": "https://github.com/joeblew999/cf-deploy/commit/eb9b4170f98457684955f5076163da1a78268347"
+      }
+    },
     {
       "version": "1.0.0",
       "tag": "v1.0.0",
-      "date": "2026-02-24T03:10:22.223Z",
-      "versionId": "f2b0de1a-b26d-473f-8bba-927878d39056",
+      "date": "2026-02-24T03:23:16.151Z",
+      "versionId": "e8ea0f0e-610e-4234-b597-4a50c72d796b",
       "url": "https://v1-0-0-cf-deploy-example.gedw99.workers.dev",
-      "previewUrl": "https://f2b0de1a-b26d-473f-8bba-927878d39056-cf-deploy-example.gedw99.workers.dev",
+      "previewUrl": "https://e8ea0f0e-610e-4234-b597-4a50c72d796b-cf-deploy-example.gedw99.workers.dev",
       "git": {
-        "commitSha": "b020a03",
-        "commitFull": "b020a0344dc7123750393d30d06fe4bec4c4dd78",
-        "commitMessage": "feat: live example worker + Playwright tests + delete/test commands",
+        "commitSha": "e4b594f",
+        "commitFull": "e4b594f99e58c2355f74018af3f9a29a6e999823",
+        "commitMessage": "feat: init command, smart promote/rollback, CI workflows, developer workflow docs",
         "branch": "main",
-        "commitUrl": "https://github.com/joeblew999/cf-deploy/commit/b020a0344dc7123750393d30d06fe4bec4c4dd78"
+        "commitUrl": "https://github.com/joeblew999/cf-deploy/commit/e4b594f99e58c2355f74018af3f9a29a6e999823"
       }
     }
   ],
-  "previews": []
+  "previews": [
+    {
+      "label": "PR #99",
+      "tag": "pr-99",
+      "date": "2026-02-24T03:32:23.827Z",
+      "versionId": "351dbfd2-7624-40d8-8ae2-479016904280",
+      "url": "https://pr-99-cf-deploy-example.gedw99.workers.dev"
+    }
+  ]
 }

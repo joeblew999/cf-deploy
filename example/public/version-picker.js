@@ -2,7 +2,7 @@
  * <cf-version-picker> — Vanilla Web Component: version badge + dropdown.
  *
  * Zero dependencies. Fetches /api/health and /versions.json on connect,
- * renders a dropdown with all deployed versions and links.
+ * renders a dropdown with all deployed versions, PR previews, and links.
  * Uses light DOM — inherits page styles (DaisyUI, Tailwind, or any CSS).
  *
  * Usage:
@@ -19,7 +19,7 @@ class CfVersionPicker extends HTMLElement {
     this._manifestPath = this.getAttribute('manifest-path') || '/versions.json';
     this._localPort = this.getAttribute('local-port') || '8788';
     this._isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    this._data = { versions: [], previews: [], production: '', github: '' };
+    this._data = { versions: [], previews: [], production: '', github: '', generated: '' };
     this._current = '?';
     this._loaded = false;
     this._render();
@@ -38,6 +38,7 @@ class CfVersionPicker extends HTMLElement {
         previews: manifest.previews || [],
         production: manifest.production || '',
         github: manifest.github || '',
+        generated: manifest.generated || '',
       };
       this._loaded = true;
       this._render();
@@ -50,7 +51,7 @@ class CfVersionPicker extends HTMLElement {
 
     if (!this._loaded || this._data.versions.length === 0) {
       this.innerHTML = `
-        <div class="dropdown dropdown-bottom">
+        <div class="dropdown dropdown-bottom dropdown-end">
           <div tabindex="0" role="button"
                class="badge badge-sm badge-outline opacity-40 hover:opacity-80 cursor-pointer font-mono"
                title="${this._esc(title)}">${this._esc(label)}</div>
@@ -60,28 +61,49 @@ class CfVersionPicker extends HTMLElement {
 
     const v = this._data;
     const releases = v.versions.map(r => this._renderRelease(r)).join('');
+
     const previews = v.previews.length > 0
-      ? `<li class="menu-title mt-2 pt-2 border-t border-base-300">PR Previews</li>` +
-        v.previews.map(p => `<li><a href="${this._esc(p.url)}" target="_blank">${this._esc(p.label)}</a></li>`).join('')
+      ? `<li class="menu-title mt-2 pt-2 border-t border-base-300">
+           <span class="flex items-center gap-1">PR Previews <span class="badge badge-xs">${v.previews.length}</span></span>
+         </li>` +
+        v.previews.map(p => this._renderPreview(p)).join('')
       : '';
 
     const localUrl = `http://localhost:${this._localPort}`;
+    const generated = v.generated ? this._relativeTime(v.generated) : '';
 
     this.innerHTML = `
-      <div class="dropdown dropdown-bottom">
+      <div class="dropdown dropdown-bottom dropdown-end">
         <div tabindex="0" role="button"
              class="badge badge-sm badge-outline opacity-40 hover:opacity-80 cursor-pointer font-mono"
              title="${this._esc(title)}">${this._esc(label)}</div>
-        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-50 w-64 p-2 shadow-xl text-xs">
-          <li class="menu-title">Releases</li>
+        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-50 w-80 p-2 shadow-xl text-xs">
+
+          <li class="menu-title">
+            <span class="flex items-center gap-1">Releases <span class="badge badge-xs">${v.versions.length}</span></span>
+          </li>
           ${releases}
+
           ${previews}
+
           <li class="menu-title mt-2 pt-2 border-t border-base-300">Links</li>
           <li><a href="${localUrl}" class="${this._isLocal ? 'active font-bold' : ''}">
-            Local Dev${this._isLocal ? ' (current)' : ''}
+            <span class="flex items-center gap-1.5">
+              ${this._isLocal ? this._dot('success') : this._dot('neutral')}
+              Local Dev <span class="font-mono opacity-50">:${this._esc(this._localPort)}</span>
+              ${this._isLocal ? '<span class="badge badge-xs badge-success">current</span>' : ''}
+            </span>
           </a></li>
-          ${v.production ? `<li><a href="${this._esc(v.production)}" target="_blank">Production</a></li>` : ''}
-          ${v.github ? `<li><a href="${this._esc(v.github + '/releases')}" target="_blank">GitHub Releases</a></li>` : ''}
+          ${v.production ? `<li><a href="${this._esc(v.production)}" target="_blank">
+            <span class="flex items-center gap-1.5">\u{1F310} Production</span>
+          </a></li>` : ''}
+          ${v.github ? `<li><a href="${this._esc(v.github)}" target="_blank">
+            <span class="flex items-center gap-1.5">\u{1F4E6} GitHub Repo</span>
+          </a></li>` : ''}
+
+          ${generated ? `<li class="disabled mt-1 pt-1 border-t border-base-300">
+            <span class="opacity-40 text-[0.6rem]">Updated ${this._esc(generated)}</span>
+          </li>` : ''}
         </ul>
       </div>`;
   }
@@ -89,39 +111,134 @@ class CfVersionPicker extends HTMLElement {
   _renderRelease(r) {
     const isCurrent = r.version === this._current;
     const g = r.git;
-    const date = r.date ? new Date(r.date).toLocaleDateString() : '';
-    const parts = [date];
-    if (g?.branch) parts.push(g.branch);
-    if (r.commandCount) parts.push(r.commandCount + ' cmds');
-    const meta = parts.filter(Boolean).join(' \u00b7 ');
+    const date = r.date ? this._shortDate(r.date) : '';
 
-    let metaHtml = '';
-    if (meta || g?.commitSha) {
-      let inner = this._esc(meta);
-      if (g?.commitSha) {
-        const sep = meta ? ' \u00b7 ' : '';
-        inner += `${sep}<a href="${this._esc(g.commitUrl)}" target="_blank" title="${this._esc(g.commitMessage || '')}"
-          class="underline" onclick="event.stopPropagation()">${this._esc(g.commitSha)}</a>`;
-      }
-      metaHtml = `<br><span class="opacity-50" style="font-size:0.65rem">${inner}</span>`;
+    // Health dot
+    const healthDot = r.healthy === true ? this._dot('success')
+      : r.healthy === false ? this._dot('error')
+      : isCurrent ? this._dot('success')
+      : this._dot('neutral');
+
+    // Git commit hash + link
+    let commitHtml = '';
+    if (g?.commitSha) {
+      commitHtml = `<a href="${this._esc(g.commitUrl)}" target="_blank"
+        title="${this._esc(g.commitMessage || '')}"
+        class="font-mono underline decoration-dotted opacity-60 hover:opacity-100"
+        onclick="event.stopPropagation()">${this._esc(g.commitSha)}</a>`;
     }
 
-    const previewLink = r.previewUrl
+    // Commit message (truncated)
+    let msgHtml = '';
+    if (g?.commitMessage) {
+      const msg = g.commitMessage.length > 40 ? g.commitMessage.slice(0, 40) + '\u2026' : g.commitMessage;
+      msgHtml = `<span class="opacity-40 truncate">${this._esc(msg)}</span>`;
+    }
+
+    // Branch badge
+    const branchHtml = g?.branch
+      ? `<span class="badge badge-xs badge-ghost font-mono">${this._esc(g.branch)}</span>`
+      : '';
+
+    // Command count
+    const cmdHtml = r.commandCount
+      ? `<span class="opacity-40">${r.commandCount} cmds</span>`
+      : '';
+
+    // Preview link icon
+    const previewIcon = r.previewUrl
       ? `<a href="${this._esc(r.previewUrl)}" target="_blank" title="Immutable preview URL"
-          class="opacity-30 hover:opacity-80" onclick="event.stopPropagation()">\u29c9</a>`
+          class="opacity-30 hover:opacity-80 text-sm" onclick="event.stopPropagation()">\u29c9</a>`
       : '';
 
     return `<li>
       <a href="${this._esc(r.url)}"
          target="${isCurrent ? '' : '_blank'}"
-         class="${isCurrent ? 'active font-bold' : ''} flex justify-between items-center gap-2">
-        <span>
-          <span>v${this._esc(r.version)}${isCurrent ? ' \u2713' : ''}</span>
-          ${metaHtml}
+         class="${isCurrent ? 'active font-bold' : ''} block py-1.5">
+        <span class="flex items-center justify-between gap-2">
+          <span class="flex items-center gap-1.5">
+            ${healthDot}
+            <span>v${this._esc(r.version)}</span>
+            ${isCurrent ? '<span class="badge badge-xs badge-success">live</span>' : ''}
+            ${branchHtml}
+          </span>
+          <span class="flex items-center gap-1.5">
+            ${commitHtml}
+            ${previewIcon}
+          </span>
         </span>
-        ${previewLink}
+        <span class="flex items-center gap-2 mt-0.5" style="font-size:0.6rem">
+          <span class="opacity-40">${this._esc(date)}</span>
+          ${cmdHtml}
+          ${msgHtml}
+        </span>
       </a>
     </li>`;
+  }
+
+  _renderPreview(p) {
+    const healthDot = p.healthy === true ? this._dot('success')
+      : p.healthy === false ? this._dot('error')
+      : this._dot('warning');
+    const date = p.date ? this._shortDate(p.date) : '';
+
+    // Link to the PR on GitHub if we have a github URL
+    const prNum = p.tag?.replace('pr-', '') || '';
+    const prLink = this._data.github && prNum
+      ? `<a href="${this._esc(this._data.github + '/pull/' + prNum)}" target="_blank"
+          class="opacity-50 hover:opacity-100" onclick="event.stopPropagation()"
+          title="View PR on GitHub">#${this._esc(prNum)}</a>`
+      : '';
+
+    return `<li>
+      <a href="${this._esc(p.url)}" target="_blank" class="block py-1.5">
+        <span class="flex items-center justify-between gap-2">
+          <span class="flex items-center gap-1.5">
+            ${healthDot}
+            <span>${this._esc(p.label)}</span>
+          </span>
+          ${prLink}
+        </span>
+        ${date ? `<span class="opacity-40" style="font-size:0.6rem">${this._esc(date)}</span>` : ''}
+      </a>
+    </li>`;
+  }
+
+  /** Colored status dot */
+  _dot(color) {
+    const colors = {
+      success: 'bg-success',
+      error: 'bg-error',
+      warning: 'bg-warning',
+      neutral: 'bg-base-content opacity-20',
+    };
+    return `<span class="inline-block w-1.5 h-1.5 rounded-full ${colors[color] || colors.neutral}"></span>`;
+  }
+
+  /** Short date: "Feb 24" or "Feb 24, 2025" if different year */
+  _shortDate(iso) {
+    try {
+      const d = new Date(iso);
+      const now = new Date();
+      const opts = { month: 'short', day: 'numeric' };
+      if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
+      return d.toLocaleDateString('en-US', opts);
+    } catch { return ''; }
+  }
+
+  /** Relative time: "2m ago", "3h ago", "yesterday" */
+  _relativeTime(iso) {
+    try {
+      const diff = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      const days = Math.floor(hrs / 24);
+      if (days === 1) return 'yesterday';
+      return days + 'd ago';
+    } catch { return ''; }
   }
 
   /** Escape HTML to prevent XSS from manifest data */

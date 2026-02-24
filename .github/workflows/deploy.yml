@@ -27,16 +27,20 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bun ../bin/cf-deploy.ts versions-json
 
-      - name: Redeploy with updated versions.json
+      - name: Redeploy with updated manifest
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bun ../bin/cf-deploy.ts upload
 
-      - name: Smoke test
+      - name: Regenerate versions.json with final version ID
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: bun ../bin/cf-deploy.ts versions-json
+
+      - name: Smoke test
+        working-directory: example
         run: bun ../bin/cf-deploy.ts smoke
 
       - name: Playwright tests
