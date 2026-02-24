@@ -12,13 +12,16 @@ No config file needed — cf-deploy reads your existing `wrangler.toml` directly
 
 ## Install
 
-```sh
-# Clone and build
-git clone https://github.com/joeblew999/cf-deploy.git
-cd cf-deploy && bun install && bun run build
+From your worker project:
 
-# Use from your worker project
-bun /path/to/cf-deploy/dist/cf-deploy.js --help
+```sh
+bun add -d github:joeblew999/cf-deploy
+```
+
+This installs cf-deploy from GitHub and auto-builds the CLI via the `prepare` script. Then use it with:
+
+```sh
+bun x cf-deploy --help
 ```
 
 ## What It Does
@@ -108,13 +111,13 @@ env:
 
 steps:
   # Deploy (push to main)
-  - run: cf-deploy versions-json
-  - run: cf-deploy upload
-  - run: cf-deploy smoke $URL
-  - run: cf-deploy promote
+  - run: bun x cf-deploy versions-json
+  - run: bun x cf-deploy upload
+  - run: bun x cf-deploy smoke $URL
+  - run: bun x cf-deploy promote
 
   # PR preview
-  - run: cf-deploy upload --pr ${{ github.event.pull_request.number }}
+  - run: bun x cf-deploy upload --pr ${{ github.event.pull_request.number }}
 ```
 
 See [.github/workflows/](.github/workflows/) for complete examples.
@@ -125,8 +128,9 @@ If you don't have an existing project:
 
 ```sh
 mkdir my-worker && cd my-worker
-bun /path/to/cf-deploy/dist/cf-deploy.js init --name my-worker
-bun install
+bun init -y
+bun add -d github:joeblew999/cf-deploy wrangler
+bun x cf-deploy init --name my-worker
 bun x wrangler dev              # http://localhost:8788
 ```
 

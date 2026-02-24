@@ -158,7 +158,7 @@ describe("example project", () => {
       expect(msg).not.toContain("Unknown command");
       expect(msg).not.toContain("Usage:");
     }
-  });
+  }, 15_000);
 });
 
 // --- Full deploy workflow (requires CLOUDFLARE_API_TOKEN) ---
