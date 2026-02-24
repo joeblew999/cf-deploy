@@ -23,6 +23,9 @@ jobs:
       - name: Verify Cross-Compilation
         run: bun run build-all
 
+      - name: Run Unit Tests
+        run: bun test
+
       - name: Run Local Verification
         run: ./scripts/test-local.sh
 
