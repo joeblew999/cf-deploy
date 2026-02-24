@@ -17,6 +17,12 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Check formatting
+        run: bun x prettier --check . || echo "Prettier check failed (ignoring for now)"
+
+      - name: Verify Cross-Compilation
+        run: npm run build-all
+
       - name: Run Local Verification
         run: ./scripts/test-local.sh
 

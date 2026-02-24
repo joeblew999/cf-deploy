@@ -22,5 +22,8 @@
     "build-macos-arm64": "bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile dist/cf-deploy-macos-arm64 --target bun-darwin-arm64",
     "prepublishOnly": "npm run build-js"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^4.68.0"
+  }
 }
