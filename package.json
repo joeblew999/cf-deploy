@@ -1,0 +1,15 @@
+{
+  "name": "cf-deploy",
+  "version": "0.1.0",
+  "description": "Reusable Cloudflare Workers deploy toolkit — CLI + versions manifest + version picker web component",
+  "type": "module",
+  "bin": {
+    "cf-deploy": "./bin/cf-deploy.ts"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "web/"
+  ],
+  "license": "MIT"
+}

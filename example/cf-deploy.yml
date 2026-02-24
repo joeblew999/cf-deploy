@@ -1,0 +1,25 @@
+# cf-deploy.yml — Example config for a Cloudflare Workers project.
+#
+# Copy this to your project root and customize.
+# All values can be overridden by env vars (WORKER_NAME, WORKER_DOMAIN, etc.)
+
+worker:
+  name: my-worker
+  domain: example.workers.dev
+  dir: .                          # relative to repo root (where wrangler.toml lives)
+
+urls:
+  production: https://my-app.example.com
+
+github:
+  repo: myorg/my-project
+
+version:
+  source: package.json            # JSON file with .version field
+  # source: web/cad-schema.json   # or any JSON with .version + optional .commands
+
+output:
+  versions_json: public/versions.json
+
+# smoke:
+#   extra: "npm run smoke:extra"  # optional project-specific smoke checks
