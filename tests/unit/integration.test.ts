@@ -12,9 +12,18 @@ const TMP = join(import.meta.dir, ".tmp-integration-test");
 const run = (cmd: string, cwd = ROOT) =>
   execSync(cmd, { cwd, encoding: "utf8", stdio: "pipe" });
 
-// Build once before all integration tests
+// Full teardown → setup: remove stale artifacts, then build fresh
 beforeAll(() => {
+  rmSync(join(ROOT, "dist"), { recursive: true, force: true });
+  rmSync(join(EXAMPLE, "public", "version-picker.js"), { force: true });
+  rmSync(join(EXAMPLE, "public", "versions.json"), { force: true });
   run("bun run build-js");
+});
+
+// Clean up generated artifacts
+afterAll(() => {
+  rmSync(join(EXAMPLE, "public", "version-picker.js"), { force: true });
+  rmSync(join(EXAMPLE, "public", "versions.json"), { force: true });
 });
 
 // --- Bundle sanity ---
