@@ -1,0 +1,11 @@
+{
+  "name": "my-new-worker",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "hono": "^4"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

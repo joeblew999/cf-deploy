@@ -141,9 +141,17 @@ bun x wrangler dev              # http://localhost:8788
 
 `init` scaffolds into the current directory: `wrangler.toml`, `package.json`, `src/index.ts`, `public/index.html`, and the version picker.
 
-## Live Example
+## Examples
 
-See [example/](example/) for a working project.
+Three example projects, all validated by integration tests (`wrangler deploy --dry-run`):
+
+| Example | What it shows |
+|---------|---------------|
+| [example/](example/) | Live deployed project (Hono + DaisyUI) |
+| [examples/from-scratch/](examples/from-scratch/) | New project — same as what `cf-deploy init` scaffolds |
+| [examples/existing-worker/](examples/existing-worker/) | Existing project — plain fetch handler, no framework |
+
+### Live URLs
 
 | | URL |
 |---|---|

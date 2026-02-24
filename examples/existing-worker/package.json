@@ -1,0 +1,8 @@
+{
+  "name": "my-existing-app",
+  "version": "3.2.1",
+  "private": true,
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

@@ -1,29 +1,53 @@
 import { describe, expect, test, beforeAll, afterAll } from "bun:test";
 import { execSync } from "child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "fs";
 import { join, resolve } from "path";
 import { loadConfig, readVersion } from "../../lib/config.ts";
 import { syncWebAssets } from "../../lib/deploy.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const DIST = join(ROOT, "dist", "cf-deploy.js");
-const EXAMPLE = join(ROOT, "example");
-const TMP = join(import.meta.dir, ".tmp-integration-test");
+const CF = `bun ${DIST}`;
+
+// Source example dirs (never modified — tests work on copies)
+const EXAMPLE_SRC = join(ROOT, "example");
+const FROM_SCRATCH_SRC = join(ROOT, "examples", "from-scratch");
+const EXISTING_WORKER_SRC = join(ROOT, "examples", "existing-worker");
+
+// Working copies (tests run against these, deleted after)
+const TMP = join(import.meta.dir, ".tmp-integration");
+const EXAMPLE = join(TMP, "example");
+const FROM_SCRATCH = join(TMP, "from-scratch");
+const EXISTING_WORKER = join(TMP, "existing-worker");
+const INIT_DIR = join(TMP, "init-test");
+
 const run = (cmd: string, cwd = ROOT) =>
   execSync(cmd, { cwd, encoding: "utf8", stdio: "pipe" });
 
-// Full teardown → setup: remove stale artifacts, then build fresh
+/** Copy an example dir to a working location (including node_modules). */
+function copyExample(src: string, dest: string) {
+  cpSync(src, dest, { recursive: true });
+}
+
+// Full teardown → setup: clean everything, build fresh, copy examples
 beforeAll(() => {
+  // Teardown
   rmSync(join(ROOT, "dist"), { recursive: true, force: true });
-  rmSync(join(EXAMPLE, "public", "version-picker.js"), { force: true });
-  rmSync(join(EXAMPLE, "public", "versions.json"), { force: true });
+  rmSync(TMP, { recursive: true, force: true });
+
+  // Build
   run("bun run build");
+
+  // Copy all 3 examples to working dirs
+  mkdirSync(TMP, { recursive: true });
+  copyExample(EXAMPLE_SRC, EXAMPLE);
+  copyExample(FROM_SCRATCH_SRC, FROM_SCRATCH);
+  copyExample(EXISTING_WORKER_SRC, EXISTING_WORKER);
 });
 
-// Clean up generated artifacts
+// Delete all working copies
 afterAll(() => {
-  rmSync(join(EXAMPLE, "public", "version-picker.js"), { force: true });
-  rmSync(join(EXAMPLE, "public", "versions.json"), { force: true });
+  rmSync(TMP, { recursive: true, force: true });
 });
 
 // --- Bundle sanity ---
@@ -34,30 +58,198 @@ describe("built bundle", () => {
   });
 
   test("--help prints usage", () => {
-    const out = run(`bun ${DIST} --help`);
+    const out = run(`${CF} --help`);
     expect(out).toContain("upload");
     expect(out).toContain("promote");
     expect(out).toContain("smoke");
   });
 
   test("--version prints version", () => {
-    const out = run(`bun ${DIST} --version`);
+    const out = run(`${CF} --version`);
     expect(out.trim()).toMatch(/\d+\.\d+\.\d+/);
   });
 });
 
-// --- Init scaffolding ---
-// init writes into cwd (no subdirectory), so we create TMP first and run init there.
+// =============================================================================
+// Example 1: example/ — the live deployed project
+// =============================================================================
+
+describe("example/ (live deployed project)", () => {
+  beforeAll(() => {
+    const cfg = loadConfig({ dir: EXAMPLE });
+    syncWebAssets(cfg);
+  });
+
+  test("loadConfig reads wrangler.toml", () => {
+    const cfg = loadConfig({ dir: EXAMPLE });
+    expect(cfg.name).toBe("cf-deploy-example");
+    expect(cfg.assetsDir).toEndWith("/public");
+  });
+
+  test("readVersion reads package.json", () => {
+    expect(readVersion(EXAMPLE)).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  test("index.ts uses env.APP_VERSION", () => {
+    const src = readFileSync(join(EXAMPLE, "src", "index.ts"), "utf8");
+    expect(src).toContain("APP_VERSION");
+  });
+
+  test("version-picker.js has provenance header", () => {
+    const content = readFileSync(
+      join(EXAMPLE, "public", "version-picker.js"),
+      "utf8",
+    );
+    expect(content.startsWith("// AUTO-GENERATED")).toBe(true);
+  });
+
+  test("index.html has version-picker element", () => {
+    const html = readFileSync(join(EXAMPLE, "public", "index.html"), "utf8");
+    expect(html).toContain("<cf-version-picker");
+  });
+
+  test("wrangler validates the project (dry-run)", () => {
+    run("bun x wrangler deploy --dry-run --outdir /tmp/wrangler-dry-example", EXAMPLE);
+  }, 30_000);
+
+  test("versions-json command parses args correctly", () => {
+    try {
+      run(`${CF} versions-json --dir "${EXAMPLE}" --out "/dev/null"`, ROOT);
+    } catch (e: any) {
+      const msg = e.stderr?.toString() || e.message || "";
+      expect(msg).not.toContain("Unknown command");
+      expect(msg).not.toContain("Usage:");
+    }
+  }, 15_000);
+});
+
+// =============================================================================
+// Example 2: examples/from-scratch/ — new project (README: "Starting from Scratch")
+// Hono-based worker, same as what `cf-deploy init` scaffolds
+// =============================================================================
+
+describe("examples/from-scratch/ (new project)", () => {
+  beforeAll(() => {
+    const cfg = loadConfig({ dir: FROM_SCRATCH });
+    syncWebAssets(cfg);
+  });
+
+  test("has all required files", () => {
+    for (const f of [
+      "wrangler.toml",
+      "package.json",
+      "src/index.ts",
+      "public/index.html",
+    ]) {
+      expect(existsSync(join(FROM_SCRATCH, f))).toBe(true);
+    }
+  });
+
+  test("loadConfig reads project", () => {
+    const cfg = loadConfig({ dir: FROM_SCRATCH });
+    expect(cfg.name).toBe("my-new-worker");
+    expect(cfg.assetsDir).toEndWith("/public");
+  });
+
+  test("readVersion reads package.json", () => {
+    expect(readVersion(FROM_SCRATCH)).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  test("index.ts uses env.APP_VERSION", () => {
+    const src = readFileSync(join(FROM_SCRATCH, "src", "index.ts"), "utf8");
+    expect(src).toContain("APP_VERSION");
+  });
+
+  test("version-picker.js is generated by syncWebAssets", () => {
+    const content = readFileSync(
+      join(FROM_SCRATCH, "public", "version-picker.js"),
+      "utf8",
+    );
+    expect(content.startsWith("// AUTO-GENERATED")).toBe(true);
+  });
+
+  test("index.html has version-picker element", () => {
+    const html = readFileSync(
+      join(FROM_SCRATCH, "public", "index.html"),
+      "utf8",
+    );
+    expect(html).toContain("<cf-version-picker");
+  });
+
+  test("wrangler validates the project (dry-run)", () => {
+    run(
+      "bun x wrangler deploy --dry-run --outdir /tmp/wrangler-dry-from-scratch",
+      FROM_SCRATCH,
+    );
+  }, 30_000);
+});
+
+// =============================================================================
+// Example 3: examples/existing-worker/ — existing project (README: "Adding to an Existing Project")
+// Plain fetch handler, no Hono — proves cf-deploy works with any worker
+// =============================================================================
+
+describe("examples/existing-worker/ (existing project, no framework)", () => {
+  beforeAll(() => {
+    const cfg = loadConfig({ dir: EXISTING_WORKER });
+    syncWebAssets(cfg);
+  });
+
+  test("has all required files", () => {
+    for (const f of [
+      "wrangler.toml",
+      "package.json",
+      "src/index.ts",
+      "public/index.html",
+    ]) {
+      expect(existsSync(join(EXISTING_WORKER, f))).toBe(true);
+    }
+  });
+
+  test("loadConfig reads project", () => {
+    const cfg = loadConfig({ dir: EXISTING_WORKER });
+    expect(cfg.name).toBe("my-existing-app");
+    expect(cfg.assetsDir).toEndWith("/public");
+  });
+
+  test("readVersion reads package.json", () => {
+    expect(readVersion(EXISTING_WORKER)).toBe("3.2.1");
+  });
+
+  test("index.ts uses env.APP_VERSION (no framework required)", () => {
+    const src = readFileSync(
+      join(EXISTING_WORKER, "src", "index.ts"),
+      "utf8",
+    );
+    expect(src).toContain("APP_VERSION");
+    expect(src).not.toContain("Hono");
+  });
+
+  test("version-picker.js is generated by syncWebAssets", () => {
+    const content = readFileSync(
+      join(EXISTING_WORKER, "public", "version-picker.js"),
+      "utf8",
+    );
+    expect(content.startsWith("// AUTO-GENERATED")).toBe(true);
+  });
+
+  test("wrangler validates the project (dry-run)", () => {
+    run(
+      "bun x wrangler deploy --dry-run --outdir /tmp/wrangler-dry-existing",
+      EXISTING_WORKER,
+    );
+  }, 30_000);
+});
+
+// =============================================================================
+// Init command — verifies cf-deploy init scaffolds correctly
+// =============================================================================
 
 describe("init command", () => {
   beforeAll(() => {
-    rmSync(TMP, { recursive: true, force: true });
-    mkdirSync(TMP, { recursive: true });
-    run(`bun ${DIST} init --name test-worker --domain workers.dev`, TMP);
-  });
-
-  afterAll(() => {
-    rmSync(TMP, { recursive: true, force: true });
+    rmSync(INIT_DIR, { recursive: true, force: true });
+    mkdirSync(INIT_DIR, { recursive: true });
+    run(`${CF} init --name test-init --domain workers.dev`, INIT_DIR);
   });
 
   test("scaffolds all expected files", () => {
@@ -68,104 +260,33 @@ describe("init command", () => {
       "public/index.html",
       "public/version-picker.js",
     ]) {
-      expect(existsSync(join(TMP, f))).toBe(true);
+      expect(existsSync(join(INIT_DIR, f))).toBe(true);
     }
   });
 
-  test("no cf-deploy.yml generated (v2 convention)", () => {
-    expect(existsSync(join(TMP, "cf-deploy.yml"))).toBe(false);
+  test("no cf-deploy.yml generated", () => {
+    expect(existsSync(join(INIT_DIR, "cf-deploy.yml"))).toBe(false);
   });
 
   test("wrangler.toml has correct name", () => {
-    const toml = readFileSync(join(TMP, "wrangler.toml"), "utf8");
-    expect(toml).toContain('name = "test-worker"');
+    const toml = readFileSync(join(INIT_DIR, "wrangler.toml"), "utf8");
+    expect(toml).toContain('name = "test-init"');
   });
 
-  test("index.ts uses env.APP_VERSION (not hardcoded)", () => {
-    const src = readFileSync(join(TMP, "src", "index.ts"), "utf8");
-    expect(src).toContain("APP_VERSION");
-    expect(src).not.toMatch(/"1\.0\.0"/);
-  });
-
-  test("version-picker.js has provenance header", () => {
-    const vp = readFileSync(
-      join(TMP, "public", "version-picker.js"),
-      "utf8",
-    );
-    expect(vp.startsWith("// AUTO-GENERATED")).toBe(true);
-  });
-
-  test("loadConfig reads scaffolded project correctly", () => {
-    const cfg = loadConfig({ dir: TMP });
-    expect(cfg.name).toBe("test-worker");
+  test("loadConfig reads scaffolded project", () => {
+    const cfg = loadConfig({ dir: INIT_DIR });
+    expect(cfg.name).toBe("test-init");
     expect(cfg.assetsDir).toEndWith("/public");
   });
 });
 
-// --- Example project validation ---
-
-describe("example project", () => {
-  // Dogfood: use cf-deploy's own syncWebAssets to generate version-picker.js
-  // (the file is gitignored — this is idempotent and mirrors what `upload` does)
-  beforeAll(() => {
-    const cfg = loadConfig({ dir: EXAMPLE });
-    syncWebAssets(cfg);
-  });
-
-  test("loadConfig reads example/wrangler.toml correctly", () => {
-    const cfg = loadConfig({ dir: EXAMPLE });
-    expect(cfg.name).toBe("cf-deploy-example");
-    expect(cfg.assetsDir).toEndWith("/public");
-  });
-
-  test("readVersion reads example/package.json", () => {
-    const v = readVersion(EXAMPLE);
-    expect(v).toMatch(/^\d+\.\d+\.\d+$/);
-  });
-
-  test("example has no cf-deploy.yml", () => {
-    expect(existsSync(join(EXAMPLE, "cf-deploy.yml"))).toBe(false);
-  });
-
-  test("example index.ts uses env.APP_VERSION", () => {
-    const src = readFileSync(join(EXAMPLE, "src", "index.ts"), "utf8");
-    expect(src).toContain("APP_VERSION");
-  });
-
-  test("example public/ has version-picker.js with provenance header", () => {
-    const path = join(EXAMPLE, "public", "version-picker.js");
-    expect(existsSync(path)).toBe(true);
-    const content = readFileSync(path, "utf8");
-    expect(content.startsWith("// AUTO-GENERATED")).toBe(true);
-  });
-
-  test("example public/ has index.html with version-picker element", () => {
-    const html = readFileSync(join(EXAMPLE, "public", "index.html"), "utf8");
-    expect(html).toContain("<cf-version-picker");
-  });
-
-  test("versions-json command parses args correctly", () => {
-    // versions-json calls wrangler (needs auth) — we just verify it doesn't
-    // crash on arg parsing by catching the wrangler auth error
-    try {
-      run(
-        `bun ${DIST} versions-json --dir "${EXAMPLE}" --out "/dev/null"`,
-        ROOT,
-      );
-    } catch (e: any) {
-      // Expected: wrangler auth error, NOT a cf-deploy arg parsing error
-      const msg = e.stderr?.toString() || e.message || "";
-      expect(msg).not.toContain("Unknown command");
-      expect(msg).not.toContain("Usage:");
-    }
-  }, 15_000);
-});
-
-// --- Full deploy workflow (requires CLOUDFLARE_API_TOKEN) ---
+// =============================================================================
+// Full deploy workflow (requires CLOUDFLARE_API_TOKEN)
+// =============================================================================
 
 const HAS_AUTH = !!process.env.CLOUDFLARE_API_TOKEN;
-const PROD_URL = process.env.PROD_URL || "https://cf-deploy-example.gedw99.workers.dev";
-const CF = `bun ${DIST}`;
+const PROD_URL =
+  process.env.PROD_URL || "https://cf-deploy-example.gedw99.workers.dev";
 
 describe.skipIf(!HAS_AUTH)("deploy workflow (live)", () => {
   test("versions-json generates manifest", () => {

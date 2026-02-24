@@ -14,3 +14,6 @@ bun.lockb
 example/bun.lock
 example/public/version-picker.js
 example/public/versions.json
+examples/*/bun.lock
+examples/*/public/version-picker.js
+examples/*/public/versions.json
