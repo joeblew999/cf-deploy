@@ -1,7 +1,7 @@
 {
   "production": "https://cf-deploy-example.gedw99.workers.dev",
   "github": "https://github.com/joeblew999/cf-deploy",
-  "generated": "2026-02-24T03:10:35.820Z",
+  "generated": "2026-02-24T03:19:44.915Z",
   "versions": [
     {
       "version": "1.0.0",
@@ -11,11 +11,11 @@
       "url": "https://v1-0-0-cf-deploy-example.gedw99.workers.dev",
       "previewUrl": "https://f2b0de1a-b26d-473f-8bba-927878d39056-cf-deploy-example.gedw99.workers.dev",
       "git": {
-        "commitSha": "6194a5f",
-        "commitFull": "6194a5f016413ca3ef349b458831d9397166e26c",
-        "commitMessage": "feat: cf-deploy CLI toolkit — wraps wrangler with versioning conventions",
+        "commitSha": "b020a03",
+        "commitFull": "b020a0344dc7123750393d30d06fe4bec4c4dd78",
+        "commitMessage": "feat: live example worker + Playwright tests + delete/test commands",
         "branch": "main",
-        "commitUrl": "https://github.com/joeblew999/cf-deploy/commit/6194a5f016413ca3ef349b458831d9397166e26c"
+        "commitUrl": "https://github.com/joeblew999/cf-deploy/commit/b020a0344dc7123750393d30d06fe4bec4c4dd78"
       }
     }
   ],

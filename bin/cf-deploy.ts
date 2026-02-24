@@ -27,6 +27,7 @@ import { preview } from "../lib/preview.ts";
 import { list } from "../lib/list.ts";
 import { rollback, canary, status, versionsList, tail, secretList, whoami, deleteWorker } from "../lib/wrangler.ts";
 import { runTests } from "../lib/test.ts";
+import { init } from "../lib/init.ts";
 
 const args = process.argv.slice(2);
 
@@ -67,8 +68,9 @@ if (!command || command === "--help" || command === "-h") {
   console.log(`cf-deploy — Cloudflare Workers deploy toolkit
 
 Commands:
+  init --name N --domain D         Scaffold a new cf-deploy project
   upload [--version X] [--tag T]   Upload new version (does NOT promote)
-  promote                          Deploy latest version to 100% traffic
+  promote [--version X]            Promote version to 100% traffic (default: latest)
   rollback                         Roll back to previous version
   canary                           Deploy with gradual traffic split
   smoke [URL]                      Smoke test a deployed URL
@@ -89,6 +91,18 @@ Options:
   process.exit(0);
 }
 
+// init doesn't need config — handle it before loadConfig
+if (command === "init") {
+  const name = getFlag("--name");
+  const domain = getFlag("--domain");
+  if (!name || !domain) {
+    console.error("Usage: cf-deploy init --name my-worker --domain example.workers.dev");
+    process.exit(1);
+  }
+  init(name, domain);
+  process.exit(0);
+}
+
 const config = loadConfig(configPath);
 
 switch (command) {
@@ -97,7 +111,7 @@ switch (command) {
     break;
 
   case "promote":
-    promote(config);
+    promote(config, getFlag("--version"));
     break;
 
   case "rollback":

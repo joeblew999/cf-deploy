@@ -116,6 +116,15 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
     }
   }
 
+  // Load existing versions.json to preserve git metadata from previous runs
+  const existingGit: Map<string, { git?: GitInfo; commandCount?: number }> = new Map();
+  try {
+    const prev: VersionsJson = JSON.parse(readFileSync(config.output.versions_json, "utf8"));
+    for (const r of prev.versions) {
+      if (r.git) existingGit.set(r.version, { git: r.git, commandCount: r.commandCount });
+    }
+  } catch { /* no existing file — that's fine */ }
+
   // Build releases + previews
   const releases: Release[] = [];
   const previews: Preview[] = [];
@@ -141,8 +150,14 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
         previewUrl: workerUrl(config, v.versionId),
       };
       if (ver === appVersion) {
+        // Current version gets fresh git info
         entry.git = gitInfo;
         entry.commandCount = commandCount;
+      } else if (existingGit.has(ver)) {
+        // Older versions preserve git info from previous runs
+        const prev = existingGit.get(ver)!;
+        entry.git = prev.git;
+        entry.commandCount = prev.commandCount;
       }
       releases.push(entry);
     }
