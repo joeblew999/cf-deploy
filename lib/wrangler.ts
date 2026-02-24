@@ -55,7 +55,8 @@ export function fetchWranglerVersions(
     encoding: "utf8",
     stdio: ["pipe", "pipe", "pipe"],
   }).toString();
-  return parseWranglerOutput(raw);
+  // Wrangler lists oldest-first; reverse so newest is first
+  return parseWranglerOutput(raw).reverse();
 }
 
 export function parseWranglerOutput(raw: string): WranglerVersion[] {
