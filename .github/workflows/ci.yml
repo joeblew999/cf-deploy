@@ -21,7 +21,7 @@ jobs:
         run: bun x prettier --check . || echo "Prettier check failed (ignoring for now)"
 
       - name: Verify Cross-Compilation
-        run: npm run build-all
+        run: bun run build-all
 
       - name: Run Local Verification
         run: ./scripts/test-local.sh

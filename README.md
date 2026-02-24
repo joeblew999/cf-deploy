@@ -131,30 +131,22 @@ This means:
 
 ## Quick Start
 
-The toolkit is designed to be used without "polluting" your global system. You can run it instantly via your favorite package manager or as a standalone binary.
+The toolkit is designed to be used with **Bun** for maximum performance.
 
 ### 1. Run Instantly (No Installation)
-
-**Via Bun (Fastest)**
 
 ```sh
 bun x cf-deploy init --name my-worker --domain my-org.workers.dev
 ```
 
-**Via NPM**
-
-```sh
-npx cf-deploy init --name my-worker --domain my-org.workers.dev
-```
-
 ### 2. Standalone Binary (Zero Dependencies)
-
-If you don't use NPM or Bun, download the single executable file:
+If you don't have Bun installed, download the single executable file:
 
 ```sh
 curl -sSL https://raw.githubusercontent.com/joeblew999/cf-deploy/main/install.sh | bash
 ./cf-deploy init ...
 ```
+
 
 See [example/](example/) for a complete working setup with Hono, static assets, and the version picker.
 

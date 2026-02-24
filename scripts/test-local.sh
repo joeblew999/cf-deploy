@@ -6,7 +6,7 @@ echo "🚀 Testing Local Standalone Bundle"
 
 # 1. Build the bundle
 echo "Building JS bundle..."
-npm run build-js
+bun run build-js
 
 # 2. Create a temporary project directory
 TEST_DIR="tmp_local_bundle_test"

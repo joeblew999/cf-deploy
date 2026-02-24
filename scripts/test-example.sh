@@ -14,7 +14,7 @@ echo "Version: $APP_VERSION"
 
 # 1. Build & Whoami
 echo -e "\n--- 1. PREP ---"
-npm run build
+bun run build
 BINARY="$(pwd)/cf-deploy"
 chmod +x "$BINARY"
 "$BINARY" whoami

@@ -29,7 +29,7 @@ jobs:
         run: bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile cf-deploy-linux-arm64 --target bun-linux-arm64
 
       - name: Build NPM bundle
-        run: npm run build-npm
+        run: bun run build-js
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

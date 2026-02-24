@@ -1,0 +1,16 @@
+worker:
+  name: local-test-worker
+  domain: example.com
+  dir: .
+
+urls:
+  production: https://local-test-worker.example.com
+
+github:
+  repo: ""
+
+version:
+  source: package.json
+
+output:
+  versions_json: public/versions.json
