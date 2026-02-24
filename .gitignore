@@ -3,4 +3,5 @@ bun.lockb
 .DS_Store
 .wrangler/
 example/bun.lock
+example/public/version-picker.js
 test-results/

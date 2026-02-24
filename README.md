@@ -13,7 +13,7 @@ The [example/](example/) folder contains a complete, deployed Cloudflare Worker 
 | **Live app** | https://cf-deploy-example.gedw99.workers.dev |
 | **Health endpoint** | https://cf-deploy-example.gedw99.workers.dev/api/health |
 | **Versions manifest** | https://cf-deploy-example.gedw99.workers.dev/versions.json |
-| **v1.0.0 alias** | https://v1-0-0-cf-deploy-example.gedw99.workers.dev |
+| **v1.1.0 alias** | https://v1-1-0-cf-deploy-example.gedw99.workers.dev |
 
 Clone the repo and run it locally too:
 
@@ -34,7 +34,16 @@ bun x wrangler dev                         # localhost:8788
 # Same versions.json, same /api/health — identical behavior
 ```
 
-### Tagged Releases
+### Deploy (one command)
+```sh
+cf-deploy deploy                           # upload + smoke test + preview URL
+cf-deploy deploy --version 1.2.0           # deploy a specific version
+cf-deploy deploy --skip-smoke              # skip smoke test
+cf-deploy promote                          # go live when ready
+```
+One command does the full cycle: upload, smoke test the preview URL, and print the link. You get a working preview URL without needing a PR.
+
+### Tagged Releases (granular control)
 ```sh
 cf-deploy upload --version 1.2.0           # tagged upload, not yet live
 cf-deploy smoke                            # health + index checks
@@ -92,7 +101,7 @@ All version metadata is **generated at dev/build time** and embedded as a static
 5. Git metadata (hash, message, branch, commit URL) is embedded per-version and preserved across regenerations
 
 This means:
-- **Offline-capable** — version data works even if Cloudflare's dashboard is down
+- **Self-contained** — version data is a static file on your worker, no dependency on Cloudflare's API or dashboard at runtime
 - **Fast** — no API calls, just a static JSON fetch
 - **Auditable** — `versions.json` is in your git history
 - **Works locally** — `wrangler dev` serves the same static files on localhost
@@ -115,7 +124,10 @@ git clone --depth 1 https://github.com/joeblew999/cf-deploy.git .src/cf-deploy
 # Copy and customize config
 cp .src/cf-deploy/example/cf-deploy.yml ./cf-deploy.yml
 
-# Use
+# Deploy and get a preview URL
+bun .src/cf-deploy/bin/cf-deploy.ts deploy
+
+# Or step-by-step
 bun .src/cf-deploy/bin/cf-deploy.ts upload --version 1.0.0
 bun .src/cf-deploy/bin/cf-deploy.ts versions-json
 bun .src/cf-deploy/bin/cf-deploy.ts smoke
@@ -153,6 +165,7 @@ All values can be overridden by env vars (`WORKER_NAME`, `WORKER_DOMAIN`, etc.).
 ## CLI Commands
 
 ```
+cf-deploy deploy [--version X] [--tag T]   Upload + smoke test + show preview URL
 cf-deploy upload [--version X] [--tag T]   Upload new version (does NOT promote)
 cf-deploy promote [--version X]            Promote to 100% traffic (default: latest)
 cf-deploy rollback                         Roll back to previous version
@@ -168,6 +181,7 @@ cf-deploy delete                           Delete the Worker (full teardown)
 cf-deploy tail                             Tail live Worker logs
 cf-deploy secrets                          List Worker secrets
 cf-deploy whoami                           Cloudflare auth info
+cf-deploy init --name N --domain D         Scaffold a new project
 ```
 
 ## Version Picker
@@ -187,18 +201,18 @@ Works with **any** task runner or none at all:
 
 ```yaml
 # go-task
-"cf:upload":
-  cmds: [bun .src/cf-deploy/bin/cf-deploy.ts upload]
+"cf:deploy":
+  cmds: [bun .src/cf-deploy/bin/cf-deploy.ts deploy]
 ```
 
 ```json
 // npm scripts
-{ "deploy:upload": "bun .src/cf-deploy/bin/cf-deploy.ts upload" }
+{ "deploy": "bun .src/cf-deploy/bin/cf-deploy.ts deploy" }
 ```
 
 ```makefile
 # Makefile
-upload: ; bun .src/cf-deploy/bin/cf-deploy.ts upload
+deploy: ; bun .src/cf-deploy/bin/cf-deploy.ts deploy
 ```
 
 ## Architecture

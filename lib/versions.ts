@@ -1,18 +1,14 @@
 /**
  * Generate versions.json manifest from wrangler + git metadata.
- * Port of scripts/versions-json.ts — now reads config from CfDeployConfig.
  */
 import { execSync } from "child_process";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname } from "path";
 import type { CfDeployConfig } from "./config.ts";
 import { getAppVersion, getCommandCount } from "./version-source.ts";
 import type { GitInfo, Preview, Release, VersionsJson } from "./types.ts";
-
-/** Build a Workers preview/alias URL */
-function workerUrl(config: CfDeployConfig, prefix: string): string {
-  return `https://${prefix}-${config.worker.name}.${config.worker.domain}`;
-}
+import { fetchWranglerVersions } from "./wrangler-versions.ts";
+import { workerUrl, versionAliasUrl } from "./urls.ts";
 
 /** Check health of a URL */
 async function checkHealth(url: string): Promise<boolean> {
@@ -85,36 +81,7 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
   const commandCount = getCommandCount(config);
 
   // Parse wrangler versions list
-  interface WranglerVersion {
-    versionId: string;
-    created: string;
-    tag: string;
-  }
-
-  const raw = execSync("bun x wrangler versions list 2>&1", {
-    cwd: config.worker.dir,
-    encoding: "utf8",
-  });
-  const wranglerVersions: WranglerVersion[] = [];
-  let cur: Partial<WranglerVersion> = {};
-
-  for (const line of raw.split("\n")) {
-    const idMatch = line.match(/^Version ID:\s+(.+)/);
-    const createdMatch = line.match(/^Created:\s+(.+)/);
-    const tagMatch = line.match(/^Tag:\s+(.+)/);
-
-    if (idMatch) {
-      cur = { versionId: idMatch[1].trim() };
-    } else if (createdMatch && cur.versionId) {
-      cur.created = createdMatch[1].trim();
-    } else if (tagMatch && cur.versionId) {
-      cur.tag = tagMatch[1].trim();
-      if (cur.tag !== "-" && cur.created) {
-        wranglerVersions.push(cur as WranglerVersion);
-      }
-      cur = {};
-    }
-  }
+  const wranglerVersions = fetchWranglerVersions(config);
 
   // Load existing versions.json to preserve git metadata from previous runs
   const existingGit: Map<string, { git?: GitInfo; commandCount?: number }> = new Map();
@@ -140,21 +107,18 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
       });
     } else if (/^v\d/.test(v.tag)) {
       const ver = v.tag.replace("v", "");
-      const slug = ver.replaceAll(".", "-");
       const entry: Release = {
         version: ver,
         tag: v.tag,
         date: v.created,
         versionId: v.versionId,
-        url: workerUrl(config, `v${slug}`),
+        url: versionAliasUrl(config, ver),
         previewUrl: workerUrl(config, v.versionId),
       };
       if (ver === appVersion) {
-        // Current version gets fresh git info
         entry.git = gitInfo;
         entry.commandCount = commandCount;
       } else if (existingGit.has(ver)) {
-        // Older versions preserve git info from previous runs
         const prev = existingGit.get(ver)!;
         entry.git = prev.git;
         entry.commandCount = prev.commandCount;
@@ -169,13 +133,12 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
 
   // Ensure current version is present
   if (!deduped.find((v) => v.version === appVersion)) {
-    const slug = appVersion.replaceAll(".", "-");
     deduped.unshift({
       version: appVersion,
       tag: `v${appVersion}`,
       date: new Date().toISOString(),
       versionId: "",
-      url: workerUrl(config, `v${slug}`),
+      url: versionAliasUrl(config, appVersion),
       previewUrl: "",
       git: gitInfo,
       commandCount,
@@ -208,7 +171,6 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
   // Ensure output directory exists
   const outDir = dirname(config.output.versions_json);
   if (!existsSync(outDir)) {
-    const { mkdirSync } = await import("fs");
     mkdirSync(outDir, { recursive: true });
   }
 

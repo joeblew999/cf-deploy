@@ -47,13 +47,13 @@ class CfVersionPicker extends HTMLElement {
 
   _render() {
     const label = !this._loaded ? '...' : this._isLocal ? 'local' : 'v' + this._current;
-    const title = !this._loaded ? '' : (this._isLocal ? 'Local dev' : 'v' + this._current) + ' \u2014 click to switch versions';
+    const title = !this._loaded ? '' : (this._isLocal ? 'Local dev' : 'v' + this._current) + ' — click to switch versions';
 
     if (!this._loaded || this._data.versions.length === 0) {
       this.innerHTML = `
-        <div class="dropdown dropdown-bottom dropdown-end">
+        <div class="dropdown dropdown-top dropdown-end">
           <div tabindex="0" role="button"
-               class="badge badge-sm badge-outline opacity-40 hover:opacity-80 cursor-pointer font-mono"
+               class="badge badge-outline hover:badge-primary cursor-pointer font-mono text-xs"
                title="${this._esc(title)}">${this._esc(label)}</div>
         </div>`;
       return;
@@ -63,8 +63,8 @@ class CfVersionPicker extends HTMLElement {
     const releases = v.versions.map(r => this._renderRelease(r)).join('');
 
     const previews = v.previews.length > 0
-      ? `<li class="menu-title mt-2 pt-2 border-t border-base-300">
-           <span class="flex items-center gap-1">PR Previews <span class="badge badge-xs">${v.previews.length}</span></span>
+      ? `<li class="menu-title mt-1 pt-1 border-t border-base-300">
+           <span>PR Previews</span>
          </li>` +
         v.previews.map(p => this._renderPreview(p)).join('')
       : '';
@@ -73,32 +73,32 @@ class CfVersionPicker extends HTMLElement {
     const generated = v.generated ? this._relativeTime(v.generated) : '';
 
     this.innerHTML = `
-      <div class="dropdown dropdown-bottom dropdown-end">
+      <div class="dropdown dropdown-top dropdown-end">
         <div tabindex="0" role="button"
-             class="badge badge-sm badge-outline opacity-40 hover:opacity-80 cursor-pointer font-mono"
+             class="badge badge-outline hover:badge-primary cursor-pointer font-mono text-xs"
              title="${this._esc(title)}">${this._esc(label)}</div>
-        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-50 w-80 p-2 shadow-xl text-xs">
+        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-50 w-72 p-2 shadow-xl text-xs mb-2">
 
           <li class="menu-title">
-            <span class="flex items-center gap-1">Releases <span class="badge badge-xs">${v.versions.length}</span></span>
+            <span>Versions</span>
           </li>
           ${releases}
 
           ${previews}
 
-          <li class="menu-title mt-2 pt-2 border-t border-base-300">Links</li>
-          <li><a href="${localUrl}" class="${this._isLocal ? 'active font-bold' : ''}">
-            <span class="flex items-center gap-1.5">
-              ${this._isLocal ? this._dot('success') : this._dot('neutral')}
-              Local Dev <span class="font-mono opacity-50">:${this._esc(this._localPort)}</span>
-              ${this._isLocal ? '<span class="badge badge-xs badge-success">current</span>' : ''}
-            </span>
+          <li class="menu-title mt-1 pt-1 border-t border-base-300">
+            <span>Links</span>
+          </li>
+          <li><a href="${localUrl}" class="${this._isLocal ? 'active' : ''}">
+            ${this._isLocal ? this._dot('success') : this._dot('neutral')}
+            Local Dev
+            <span class="font-mono opacity-50">:${this._esc(this._localPort)}</span>
           </a></li>
           ${v.production ? `<li><a href="${this._esc(v.production)}" target="_blank">
-            <span class="flex items-center gap-1.5">\u{1F310} Production</span>
+            \u{1F310} Production
           </a></li>` : ''}
           ${v.github ? `<li><a href="${this._esc(v.github)}" target="_blank">
-            <span class="flex items-center gap-1.5">\u{1F4E6} GitHub Repo</span>
+            \u{1F4E6} GitHub
           </a></li>` : ''}
 
           ${generated ? `<li class="disabled mt-1 pt-1 border-t border-base-300">
@@ -113,64 +113,32 @@ class CfVersionPicker extends HTMLElement {
     const g = r.git;
     const date = r.date ? this._shortDate(r.date) : '';
 
-    // Health dot
     const healthDot = r.healthy === true ? this._dot('success')
       : r.healthy === false ? this._dot('error')
       : isCurrent ? this._dot('success')
       : this._dot('neutral');
 
-    // Git commit hash + link
-    let commitHtml = '';
-    if (g?.commitSha) {
-      commitHtml = `<a href="${this._esc(g.commitUrl)}" target="_blank"
-        title="${this._esc(g.commitMessage || '')}"
-        class="font-mono underline decoration-dotted opacity-60 hover:opacity-100"
-        onclick="event.stopPropagation()">${this._esc(g.commitSha)}</a>`;
-    }
-
-    // Commit message (truncated)
-    let msgHtml = '';
-    if (g?.commitMessage) {
-      const msg = g.commitMessage.length > 40 ? g.commitMessage.slice(0, 40) + '\u2026' : g.commitMessage;
-      msgHtml = `<span class="opacity-40 truncate">${this._esc(msg)}</span>`;
-    }
-
-    // Branch badge
-    const branchHtml = g?.branch
-      ? `<span class="badge badge-xs badge-ghost font-mono">${this._esc(g.branch)}</span>`
-      : '';
-
-    // Command count
-    const cmdHtml = r.commandCount
-      ? `<span class="opacity-40">${r.commandCount} cmds</span>`
-      : '';
-
-    // Preview link icon
-    const previewIcon = r.previewUrl
-      ? `<a href="${this._esc(r.previewUrl)}" target="_blank" title="Immutable preview URL"
-          class="opacity-30 hover:opacity-80 text-sm" onclick="event.stopPropagation()">\u29c9</a>`
+    // Commit hash as span (not <a>) to avoid nested-anchor browser breakage
+    const commitHtml = g?.commitSha
+      ? `<span class="font-mono opacity-40 hover:opacity-100 cursor-pointer"
+          title="${this._esc(g.commitMessage || '')}"
+          onclick="event.preventDefault();event.stopPropagation();window.open('${this._esc(g.commitUrl)}','_blank')">${this._esc(g.commitSha)}</span>`
       : '';
 
     return `<li>
       <a href="${this._esc(r.url)}"
          target="${isCurrent ? '' : '_blank'}"
-         class="${isCurrent ? 'active font-bold' : ''} block py-1.5">
-        <span class="flex items-center justify-between gap-2">
-          <span class="flex items-center gap-1.5">
+         class="${isCurrent ? 'active' : ''}">
+        <span class="flex items-center justify-between w-full gap-2">
+          <span class="flex items-center gap-1.5 min-w-0">
             ${healthDot}
             <span>v${this._esc(r.version)}</span>
             ${isCurrent ? '<span class="badge badge-xs badge-success">live</span>' : ''}
-            ${branchHtml}
           </span>
-          <span class="flex items-center gap-1.5">
+          <span class="flex items-center gap-2 shrink-0">
             ${commitHtml}
-            ${previewIcon}
+            <span class="opacity-30">${this._esc(date)}</span>
           </span>
-        </span>
-        <span class="flex items-center gap-2 mt-0.5" style="font-size:0.6rem">
-          <span class="opacity-40">${this._esc(date)}</span>
-          ${cmdHtml}
-          ${msgHtml}
         </span>
       </a>
     </li>`;
@@ -182,24 +150,25 @@ class CfVersionPicker extends HTMLElement {
       : this._dot('warning');
     const date = p.date ? this._shortDate(p.date) : '';
 
-    // Link to the PR on GitHub if we have a github URL
     const prNum = p.tag?.replace('pr-', '') || '';
     const prLink = this._data.github && prNum
-      ? `<a href="${this._esc(this._data.github + '/pull/' + prNum)}" target="_blank"
-          class="opacity-50 hover:opacity-100" onclick="event.stopPropagation()"
-          title="View PR on GitHub">#${this._esc(prNum)}</a>`
+      ? `<span class="opacity-40 hover:opacity-100 cursor-pointer"
+          title="View PR on GitHub"
+          onclick="event.preventDefault();event.stopPropagation();window.open('${this._esc(this._data.github + '/pull/' + prNum)}','_blank')">#${this._esc(prNum)}</span>`
       : '';
 
     return `<li>
-      <a href="${this._esc(p.url)}" target="_blank" class="block py-1.5">
-        <span class="flex items-center justify-between gap-2">
-          <span class="flex items-center gap-1.5">
+      <a href="${this._esc(p.url)}" target="_blank">
+        <span class="flex items-center justify-between w-full gap-2">
+          <span class="flex items-center gap-1.5 min-w-0">
             ${healthDot}
             <span>${this._esc(p.label)}</span>
           </span>
-          ${prLink}
+          <span class="flex items-center gap-2 shrink-0">
+            ${prLink}
+            <span class="opacity-30">${this._esc(date)}</span>
+          </span>
         </span>
-        ${date ? `<span class="opacity-40" style="font-size:0.6rem">${this._esc(date)}</span>` : ''}
       </a>
     </li>`;
   }
@@ -212,7 +181,7 @@ class CfVersionPicker extends HTMLElement {
       warning: 'bg-warning',
       neutral: 'bg-base-content opacity-20',
     };
-    return `<span class="inline-block w-1.5 h-1.5 rounded-full ${colors[color] || colors.neutral}"></span>`;
+    return `<span class="inline-block w-1.5 h-1.5 rounded-full shrink-0 ${colors[color] || colors.neutral}"></span>`;
   }
 
   /** Short date: "Feb 24" or "Feb 24, 2025" if different year */

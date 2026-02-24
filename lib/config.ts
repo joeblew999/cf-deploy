@@ -26,7 +26,20 @@ export interface CfDeployConfig {
   smoke: {
     extra?: string; // optional shell command for project-specific checks
   };
+  assets: {
+    dir: string; // absolute path to static assets directory
+  };
+  toolkitDir: string; // absolute path to cf-deploy toolkit root
   rootDir: string; // absolute path to repo root
+}
+
+/** Read [assets].directory from wrangler.toml, if present */
+function readAssetsDir(workerDir: string): string | undefined {
+  const tomlPath = join(workerDir, "wrangler.toml");
+  if (!existsSync(tomlPath)) return undefined;
+  const text = readFileSync(tomlPath, "utf8");
+  const match = text.match(/\[assets\]\s*\n\s*directory\s*=\s*"([^"]+)"/);
+  return match?.[1];
 }
 
 /** Find repo root via git from given dir, fallback to cwd */
@@ -128,6 +141,13 @@ export function loadConfig(configPath?: string): CfDeployConfig {
 
   const smokeExtra = process.env.SMOKE_EXTRA_CMD || yaml["smoke.extra"] || undefined;
 
+  // Assets directory: read from wrangler.toml [assets].directory, default "public"
+  const assetsDirRel = yaml["assets.dir"] || readAssetsDir(workerDir) || "public";
+  const assetsDir = resolve(workerDir, assetsDirRel);
+
+  // Toolkit root: where cf-deploy itself lives (for copying web/ assets)
+  const toolkitDir = resolve(dirname(dirname(import.meta.path)), ".");
+
   return {
     worker: { name: workerName, domain: workerDomain, dir: workerDir },
     urls: { production: productionUrl },
@@ -135,6 +155,8 @@ export function loadConfig(configPath?: string): CfDeployConfig {
     version: { source: versionSource },
     output: { versions_json: outputFile },
     smoke: { extra: smokeExtra },
+    assets: { dir: assetsDir },
+    toolkitDir,
     rootDir,
   };
 }

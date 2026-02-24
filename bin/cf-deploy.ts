@@ -3,8 +3,9 @@
  * cf-deploy — Reusable Cloudflare Workers deploy toolkit.
  *
  * Usage:
+ *   cf-deploy deploy [--version X] [--tag T]
  *   cf-deploy upload [--version X] [--tag T]
- *   cf-deploy promote
+ *   cf-deploy promote [--version X]
  *   cf-deploy rollback
  *   cf-deploy canary
  *   cf-deploy smoke [URL]
@@ -19,6 +20,7 @@
  */
 
 import { loadConfig } from "../lib/config.ts";
+import { deploy } from "../lib/deploy.ts";
 import { upload } from "../lib/upload.ts";
 import { promote } from "../lib/promote.ts";
 import { smoke } from "../lib/smoke.ts";
@@ -34,7 +36,9 @@ const args = process.argv.slice(2);
 function getFlag(name: string): string | undefined {
   const idx = args.indexOf(name);
   if (idx === -1) return undefined;
-  return args[idx + 1];
+  const val = args[idx + 1];
+  if (val === undefined || val.startsWith("--")) return undefined;
+  return val;
 }
 
 function hasFlag(name: string): boolean {
@@ -58,7 +62,7 @@ for (let i = 0; i < args.length; i++) {
 function getPositionalArg(): string | undefined {
   for (let i = commandIdx + 1; i < args.length; i++) {
     if (args[i] === "--config") { i++; continue; }
-    if (args[i].startsWith("-")) continue;
+    if (args[i].startsWith("--")) continue;
     return args[i];
   }
   return undefined;
@@ -68,7 +72,7 @@ if (!command || command === "--help" || command === "-h") {
   console.log(`cf-deploy — Cloudflare Workers deploy toolkit
 
 Commands:
-  init --name N --domain D         Scaffold a new cf-deploy project
+  deploy [--version X] [--tag T]   Upload + smoke test + show preview URL
   upload [--version X] [--tag T]   Upload new version (does NOT promote)
   promote [--version X]            Promote version to 100% traffic (default: latest)
   rollback                         Roll back to previous version
@@ -76,18 +80,20 @@ Commands:
   smoke [URL]                      Smoke test a deployed URL
   versions-json [--latest|--latest-env]  Generate/query versions.json
   preview --pr N                   Upload PR preview
+  test [URL]                       Run Playwright tests against a URL
   list                             Show all versions with URLs
   status                           Show current deployment
   versions                         List recent versions (raw wrangler)
-  test [URL]                       Run Playwright tests against a URL
   delete                           Delete the Worker (teardown)
   tail                             Tail live Worker logs
   secrets                          List Worker secrets
   whoami                           Show Cloudflare auth info
+  init --name N --domain D         Scaffold a new cf-deploy project
 
 Options:
   --config PATH                    Path to cf-deploy.yml (default: auto-detect)
-  --health-check                   Health-check preview URLs during versions-json`);
+  --health-check                   Health-check preview URLs during versions-json
+  --skip-smoke                     Skip smoke test in deploy command`);
   process.exit(0);
 }
 
@@ -106,6 +112,14 @@ if (command === "init") {
 const config = loadConfig(configPath);
 
 switch (command) {
+  case "deploy":
+    await deploy(config, {
+      version: getFlag("--version"),
+      tag: getFlag("--tag"),
+      skipSmoke: hasFlag("--skip-smoke"),
+    });
+    break;
+
   case "upload":
     upload(config, { version: getFlag("--version"), tag: getFlag("--tag") });
     break;
@@ -123,7 +137,7 @@ switch (command) {
     break;
 
   case "smoke":
-    smoke(config, getPositionalArg());
+    await smoke(config, getPositionalArg());
     break;
 
   case "versions-json":
@@ -136,7 +150,7 @@ switch (command) {
     }
     break;
 
-  case "preview":
+  case "preview": {
     const pr = getFlag("--pr");
     if (!pr) {
       console.error("ERROR: --pr N is required");
@@ -144,6 +158,7 @@ switch (command) {
     }
     preview(config, pr);
     break;
+  }
 
   case "list":
     list(config);

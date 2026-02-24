@@ -144,7 +144,8 @@ export default app;
           name,
           version: "1.0.0",
           private: true,
-          devDependencies: { wrangler: "^4", hono: "^4" },
+          dependencies: { hono: "^4" },
+          devDependencies: { wrangler: "^4" },
         },
         null,
         2

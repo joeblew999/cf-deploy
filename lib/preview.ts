@@ -3,13 +3,15 @@
  */
 import { execSync } from "child_process";
 import type { CfDeployConfig } from "./config.ts";
+import { workerUrl } from "./urls.ts";
 
 export function preview(config: CfDeployConfig, prNumber: string) {
   const tag = `pr-${prNumber}`;
   console.log(`Uploading PR preview (${tag})...`);
-  execSync(
-    `bun install && bun x wrangler versions upload --tag "${tag}" --message "PR #${prNumber}" --preview-alias "${tag}"`,
-    { cwd: config.worker.dir, stdio: "inherit" }
-  );
-  console.log(`\nPreview: https://${tag}-${config.worker.name}.${config.worker.domain}`);
+
+  const args = ["bun", "x", "wrangler", "versions", "upload",
+    "--tag", tag, "--message", `PR #${prNumber}`, "--preview-alias", tag];
+  execSync(args.map(a => `"${a}"`).join(" "), { cwd: config.worker.dir, stdio: "inherit" });
+
+  console.log(`\nPreview: ${workerUrl(config, tag)}`);
 }

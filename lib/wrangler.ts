@@ -35,7 +35,8 @@ export function rollback(config: CfDeployConfig) {
   const prevSha = previous.git?.commitSha || "?";
   console.log(`Rolling back: ${current.tag} (${curSha}) → ${previous.tag} (${prevSha})`);
   console.log(`  Review: ${previous.git?.commitUrl || "no commit link"}\n`);
-  execSync(`bun x wrangler versions deploy "${previous.versionId}@100%" --yes`, {
+  const vid = previous.versionId;
+  execSync(`bun x wrangler versions deploy "${vid}@100%" --yes`, {
     cwd: config.worker.dir,
     stdio: "inherit",
   });
@@ -67,5 +68,5 @@ export function secretList(config: CfDeployConfig) {
 
 export function deleteWorker(config: CfDeployConfig) {
   console.log(`Deleting worker: ${config.worker.name}`);
-  execSync(`bun x wrangler delete --name ${config.worker.name}`, { cwd: config.worker.dir, stdio: "inherit" });
+  execSync(`bun x wrangler delete --name "${config.worker.name}"`, { cwd: config.worker.dir, stdio: "inherit" });
 }

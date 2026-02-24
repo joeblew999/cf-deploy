@@ -1,23 +1,23 @@
 /**
  * Smoke test a deployed URL — health + index + optional project-specific checks.
+ * Uses native fetch (no curl dependency).
  */
 import { execSync } from "child_process";
-import { existsSync, readFileSync } from "fs";
+import { readFileSync } from "fs";
 import type { CfDeployConfig } from "./config.ts";
 import type { VersionsJson } from "./types.ts";
 
-export function smoke(config: CfDeployConfig, urlArg?: string) {
+export async function smoke(config: CfDeployConfig, urlArg?: string) {
   // Determine URL to test
   let url = urlArg;
   let expectedVersion: string | undefined;
 
   if (!url) {
-    // Try to get latest from versions.json
     try {
       const data: VersionsJson = JSON.parse(readFileSync(config.output.versions_json, "utf8"));
       const latest = data.versions[0];
       if (latest) {
-        url = latest.url; // alias URL (e.g. v0-7-0-worker.domain) — stable
+        url = latest.url;
         expectedVersion = latest.version;
       }
     } catch { /* ignore */ }
@@ -37,21 +37,24 @@ export function smoke(config: CfDeployConfig, urlArg?: string) {
   // 1. Health check
   let healthVersion: string;
   try {
-    const health = execSync(`curl -sf "${url}/api/health"`, { encoding: "utf8" });
-    healthVersion = JSON.parse(health).version || "?";
+    const res = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = await res.json() as { version?: string };
+    healthVersion = body.version || "?";
     console.log(`  health:    OK (v${healthVersion})`);
-  } catch {
-    console.error("  FAIL: /api/health unreachable");
+  } catch (e: any) {
+    console.error(`  FAIL: /api/health unreachable (${e.message || e})`);
     process.exit(1);
   }
 
   // 2. Index page
   try {
-    const status = execSync(`curl -sf -o /dev/null -w "%{http_code}" "${url}/"`, { encoding: "utf8" }).trim();
-    const size = execSync(`curl -sf -o /dev/null -w "%{size_download}" "${url}/"`, { encoding: "utf8" }).trim();
-    console.log(`  index:     OK (HTTP ${status}, ${size} bytes)`);
-  } catch {
-    console.error("  FAIL: index page unreachable");
+    const res = await fetch(`${url}/`, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const body = await res.text();
+    console.log(`  index:     OK (HTTP ${res.status}, ${body.length} bytes)`);
+  } catch (e: any) {
+    console.error(`  FAIL: index page unreachable (${e.message || e})`);
     process.exit(1);
   }
 
