@@ -7,7 +7,6 @@ on:
     branches: [main]
 
 env:
-  CF_DEPLOY: bun ../dist/cf-deploy.js
   PROD_URL: https://cf-deploy-example.gedw99.workers.dev
 
 jobs:
@@ -30,18 +29,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun run ci:build
 
-      - name: Deploy
+      - name: Deploy + E2E
         if: env.CLOUDFLARE_API_TOKEN != ''
-        working-directory: example
-        run: |
-          $CF_DEPLOY versions-json
-          $CF_DEPLOY upload
-          $CF_DEPLOY smoke $PROD_URL
-          $CF_DEPLOY promote
-
-      - name: E2E tests
-        if: env.CLOUDFLARE_API_TOKEN != ''
-        run: bun run test:e2e
+        run: bun run ci:deploy && bun run ci:e2e
 
       - if: env.CLOUDFLARE_API_TOKEN == ''
         run: echo "::notice::Skipping deploy — CLOUDFLARE_API_TOKEN not set"
@@ -64,16 +54,16 @@ jobs:
         id: preview
         working-directory: example
         run: |
-          $CF_DEPLOY upload --pr ${{ github.event.pull_request.number }}
+          bun ../dist/cf-deploy.js upload --pr ${{ github.event.pull_request.number }}
           echo "url=https://pr-${{ github.event.pull_request.number }}-cf-deploy-example.gedw99.workers.dev" >> "$GITHUB_OUTPUT"
 
-      - name: Smoke + E2E tests
+      - name: Smoke + E2E
         if: env.CLOUDFLARE_API_TOKEN != ''
         env:
-          TARGET_URL: ${{ steps.preview.outputs.url }}
+          PROD_URL: ${{ steps.preview.outputs.url }}
         run: |
-          cd example && $CF_DEPLOY smoke $TARGET_URL
-          bun run test:e2e
+          cd example && bun ../dist/cf-deploy.js smoke $PROD_URL
+          bun run ci:e2e
 
       - if: env.CLOUDFLARE_API_TOKEN == ''
         run: echo "::notice::Skipping PR preview — CLOUDFLARE_API_TOKEN not set"

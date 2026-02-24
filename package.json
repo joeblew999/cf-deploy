@@ -24,6 +24,9 @@
     "test:e2e": "bun x playwright install --with-deps chromium && bun x playwright test",
     "check": "bun run typecheck && bun test",
     "ci:build": "bun install && bun run build-js && cd example && bun install",
+    "ci:deploy": ": ${PROD_URL:?PROD_URL required} && CF=../dist/cf-deploy.js && cd example && bun $CF versions-json && bun $CF upload && bun $CF smoke $PROD_URL && bun $CF promote",
+    "ci:e2e": "TARGET_URL=${PROD_URL:?PROD_URL required} bun run test:e2e",
+    "ci:full": "bun run check && bun run ci:build && bun run ci:deploy && bun run ci:e2e",
     "prepare": "git config core.hooksPath .githooks",
     "prepublishOnly": "bun run build-js"
   },

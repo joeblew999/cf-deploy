@@ -65,10 +65,20 @@ tests/
 ## Development
 
 1. Edit `lib/`, `bin/`, or `web/`
-2. `bun test` — runs unit + integration tests (builds bundle automatically)
-3. `bun run build-js` — build bundle only
+2. `bun test` — unit + integration (no auth needed)
+3. `bun run check` — typecheck + tests
+
+## Full Deploy Cycle (local or CI)
+
+Same commands work everywhere. Set `CLOUDFLARE_API_TOKEN` and `PROD_URL`, then:
+
+```sh
+bun run ci:full    # check → build → deploy → e2e (everything)
+bun run ci:deploy  # versions-json → upload → smoke → promote
+bun run ci:e2e     # playwright against PROD_URL
+```
 
 ## CI
 
-- `ci.yml` — test (push + PR), deploy (main), PR preview + E2E
+- `ci.yml` — test (push + PR), deploy (main), PR preview + E2E. Calls `ci:deploy` / `ci:e2e` scripts.
 - `release.yml` — cross-compile binaries on tags
