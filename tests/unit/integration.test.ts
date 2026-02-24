@@ -177,21 +177,21 @@ describe.skipIf(!HAS_AUTH)("deploy workflow (live)", () => {
     expect(manifest.generated).toBeTruthy();
     expect(Array.isArray(manifest.versions)).toBe(true);
     expect(manifest.versions.length).toBeGreaterThan(0);
-  });
+  }, 30_000);
 
   test("upload creates a new version", () => {
     const out = run(`${CF} upload --dir "${EXAMPLE}"`, ROOT);
     expect(out).toContain("Uploading");
-  });
+  }, 60_000);
 
   test("smoke passes against production", () => {
     const out = run(`${CF} smoke ${PROD_URL}`, ROOT);
     expect(out).toContain("PASS");
-  });
+  }, 30_000);
 
   test("promote sends latest version to 100%", () => {
     run(`${CF} promote --dir "${EXAMPLE}"`, ROOT);
-  });
+  }, 60_000);
 
   test("production /api/health returns ok after promote", async () => {
     const res = await fetch(`${PROD_URL}/api/health`);
