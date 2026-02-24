@@ -65,8 +65,9 @@ tests/
 ## Development
 
 1. Edit `lib/`, `bin/`, or `web/`
-2. `bun test` — unit + integration (no auth needed)
-3. `bun run check` — typecheck + tests
+2. `bun run build` — build the JS bundle
+3. `bun test` — unit + integration (no auth needed)
+4. `bun run check` — typecheck + tests
 
 ## Full Deploy Cycle (local or CI)
 
@@ -80,5 +81,5 @@ bun run ci:e2e     # playwright against PROD_URL
 
 ## CI
 
-- `ci.yml` — test (push + PR), deploy (main), PR preview + E2E. Calls `ci:deploy` / `ci:e2e` scripts.
-- `release.yml` — cross-compile binaries on tags
+- `ci.yml` — test (push + PR), deploy (main), PR preview + E2E
+- No binary builds — runs via `bun dist/cf-deploy.js`

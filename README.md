@@ -15,7 +15,7 @@ No config file needed — cf-deploy reads your existing `wrangler.toml` directly
 ```sh
 # Clone and build
 git clone https://github.com/joeblew999/cf-deploy.git
-cd cf-deploy && bun install && bun run build-js
+cd cf-deploy && bun install && bun run build
 
 # Use from your worker project
 bun /path/to/cf-deploy/dist/cf-deploy.js --help
@@ -124,12 +124,13 @@ See [.github/workflows/](.github/workflows/) for complete examples.
 If you don't have an existing project:
 
 ```sh
-cf-deploy init --name my-worker
-cd my-worker && bun install
+mkdir my-worker && cd my-worker
+bun /path/to/cf-deploy/dist/cf-deploy.js init --name my-worker
+bun install
 bun x wrangler dev              # http://localhost:8788
 ```
 
-This scaffolds `wrangler.toml`, `src/index.ts`, `public/index.html`, and the version picker.
+`init` scaffolds into the current directory: `wrangler.toml`, `package.json`, `src/index.ts`, `public/index.html`, and the version picker.
 
 ## Live Example
 

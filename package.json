@@ -8,27 +8,20 @@
   },
   "files": [
     "dist/",
-    "web/",
-    "install.sh"
+    "web/"
   ],
   "scripts": {
-    "build": "mkdir -p dist && bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile cf-deploy",
-    "build-js": "mkdir -p dist && bun build ./bin/cf-deploy.ts --outfile dist/cf-deploy.js --target bun --bundle",
-    "build-all": "mkdir -p dist && bun run build-js && bun run build-linux-x64 && bun run build-linux-arm64 && bun run build-macos-x64 && bun run build-macos-arm64",
-    "build-linux-x64": "bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile dist/cf-deploy-linux-x64 --target bun-linux-x64",
-    "build-linux-arm64": "bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile dist/cf-deploy-linux-arm64 --target bun-linux-arm64",
-    "build-macos-x64": "bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile dist/cf-deploy-macos-x64 --target bun-darwin-x64",
-    "build-macos-arm64": "bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile dist/cf-deploy-macos-arm64 --target bun-darwin-arm64",
+    "build": "mkdir -p dist && bun build ./bin/cf-deploy.ts --outfile dist/cf-deploy.js --target bun --bundle",
     "typecheck": "bun x tsc --noEmit",
     "test": "bun test",
     "test:e2e": "bun x playwright install --with-deps chromium && bun x playwright test",
     "check": "bun run typecheck && bun test",
-    "ci:build": "bun install && bun run build-js && cd example && bun install",
+    "ci:build": "bun install && bun run build && cd example && bun install",
     "ci:deploy": ": ${PROD_URL:?PROD_URL required} && CF=../dist/cf-deploy.js && cd example && bun $CF versions-json && bun $CF upload && bun $CF smoke $PROD_URL && bun $CF promote",
     "ci:e2e": "TARGET_URL=${PROD_URL:?PROD_URL required} bun run test:e2e",
     "ci:full": "bun run check && bun run ci:build && bun run ci:deploy && bun run ci:e2e",
     "prepare": "git config core.hooksPath .githooks",
-    "prepublishOnly": "bun run build-js"
+    "prepublishOnly": "bun run build"
   },
   "license": "MIT",
   "devDependencies": {

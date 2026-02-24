@@ -17,7 +17,7 @@ beforeAll(() => {
   rmSync(join(ROOT, "dist"), { recursive: true, force: true });
   rmSync(join(EXAMPLE, "public", "version-picker.js"), { force: true });
   rmSync(join(EXAMPLE, "public", "versions.json"), { force: true });
-  run("bun run build-js");
+  run("bun run build");
 });
 
 // Clean up generated artifacts
