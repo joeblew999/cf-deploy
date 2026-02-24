@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 /**
- * Playwright config for cf-deploy example.
+ * E2E tests for a deployed cf-deploy worker.
  *
  * TARGET_URL controls which deployment to test:
  *   - Local:      TARGET_URL=http://localhost:8788
@@ -14,7 +14,7 @@ const targetUrl =
   process.env.TARGET_URL || "https://cf-deploy-example.gedw99.workers.dev";
 
 export default defineConfig({
-  testDir: "./tests",
+  testDir: "./tests/e2e",
   timeout: 15_000,
   use: {
     baseURL: targetUrl,

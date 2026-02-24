@@ -1,42 +1,19 @@
 #!/usr/bin/env bun
 /**
- * cf-deploy — Reusable Cloudflare Workers deploy toolkit.
+ * cf-deploy — Cloudflare Workers deploy toolkit.
  *
- * Usage:
- *   cf-deploy deploy [--version X] [--tag T]
- *   cf-deploy upload [--version X] [--tag T]
+ * Commands:
+ *   cf-deploy upload [--version X] [--tag T] [--pr N]
  *   cf-deploy promote [--version X]
  *   cf-deploy rollback
- *   cf-deploy canary
- *   cf-deploy smoke [URL]
- *   cf-deploy versions-json [--latest | --latest-env] [--health-check]
- *   cf-deploy preview --pr N
- *   cf-deploy list
- *   cf-deploy status
- *   cf-deploy versions
- *   cf-deploy tail
- *   cf-deploy secrets
- *   cf-deploy whoami
+ *   cf-deploy smoke <URL>
+ *   cf-deploy versions-json [--out PATH]
+ *   cf-deploy init --name N [--domain D]
  */
-
 import { loadConfig } from "../lib/config.ts";
-import { deploy, upload, promote, preview, list } from "../lib/deploy.ts";
-import { smoke, runTests } from "../lib/smoke.ts";
-import {
-  generateVersionsJson,
-  printLatest,
-  printLatestEnv,
-} from "../lib/versions.ts";
-import {
-  rollback,
-  canary,
-  status,
-  versionsList,
-  tail,
-  secretList,
-  whoami,
-  deleteWorker,
-} from "../lib/wrangler.ts";
+import { upload, promote, rollback } from "../lib/deploy.ts";
+import { smoke } from "../lib/smoke.ts";
+import { generateVersionsJson } from "../lib/versions.ts";
 import { init } from "../lib/init.ts";
 import pkg from "../package.json";
 
@@ -50,10 +27,7 @@ function getFlag(name: string): string | undefined {
   return val;
 }
 
-function hasFlag(name: string): boolean {
-  return args.includes(name);
-}
-
+// Version check
 if (
   args.length === 1 &&
   (args[0] === "--version" || args[0] === "-v" || args[0] === "version")
@@ -62,74 +36,54 @@ if (
   process.exit(0);
 }
 
-const configPath = getFlag("--config");
-
-// Commands that don't need a config file (init, whoami)
-if (args[0] === "init") {
-  const name = getFlag("--name");
-  const domain = getFlag("--domain");
-  if (!name || !domain) {
-    console.error(
-      "Usage: cf-deploy init --name my-worker --domain example.workers.dev",
-    );
-    process.exit(1);
-  }
-  init(name, domain);
-  process.exit(0);
-}
-
-if (args[0] === "whoami") {
-  whoami();
-  process.exit(0);
-}
-
-const config = loadConfig(configPath);
 const command = args[0];
 
-// Help text
+// Help
 if (!command || command === "--help" || command === "-h") {
   console.log(`cf-deploy — Cloudflare Workers deploy toolkit
 
 Commands:
-  deploy [--version X] [--tag T]   Upload + smoke test + show preview URL
-  upload [--version X] [--tag T]   Upload new version (does NOT promote)
-  promote [--version X]            Promote version to 100% traffic (default: latest)
-  rollback                         Roll back to previous version
-  canary                           Deploy with gradual traffic split
-  smoke [URL]                      Smoke test a deployed URL
-  versions-json [--latest|--latest-env]  Generate/query versions.json
-  preview --pr N                   Upload PR preview
-  test [URL]                       Run Playwright tests against a URL
-  list                             Show all versions with URLs
-  status                           Show current deployment
-  versions                         List recent versions (raw wrangler)
-  delete [--yes]                   Delete the Worker (teardown)
-  tail                             Tail live Worker logs
-  secrets                          List Worker secrets
-  whoami                           Show Cloudflare auth info
-  init --name N --domain D         Scaffold a new cf-deploy project
+  upload [--version X] [--tag T] [--pr N]   Upload a new version
+  promote [--version X]                      Promote to 100% traffic
+  rollback                                   Revert to previous version
+  smoke <URL>                                Health + index check
+  versions-json [--out PATH]                 Generate versions manifest
+  init --name N [--domain D]                 Scaffold a new project
 
 Options:
-  --config PATH                    Path to cf-deploy.yml (default: auto-detect)
-  --health-check                   Health-check preview URLs during versions-json
-  --skip-smoke                     Skip smoke test in deploy command`);
+  --dir PATH       Worker directory (default: .)
+  --name NAME      Override worker name
+  --domain DOMAIN  Override domain (default: workers.dev)`);
   process.exit(0);
 }
 
-/** Get the first positional arg after the command (e.g. `smoke URL`) */
+// Init (no config needed)
+if (command === "init") {
+  const name = getFlag("--name");
+  if (!name) {
+    console.error("Usage: cf-deploy init --name my-worker [--domain example.workers.dev]");
+    process.exit(1);
+  }
+  init(name, getFlag("--domain"));
+  process.exit(0);
+}
+
+// All other commands need config
+const config = loadConfig({
+  dir: getFlag("--dir"),
+  name: getFlag("--name"),
+  domain: getFlag("--domain"),
+});
+
 const positionalArg = args.slice(1).find((a) => !a.startsWith("-"));
 
 switch (command) {
-  case "deploy":
-    await deploy(config, {
+  case "upload":
+    upload(config, {
       version: getFlag("--version"),
       tag: getFlag("--tag"),
-      skipSmoke: hasFlag("--skip-smoke"),
+      pr: getFlag("--pr"),
     });
-    break;
-
-  case "upload":
-    upload(config, { version: getFlag("--version"), tag: getFlag("--tag") });
     break;
 
   case "promote":
@@ -140,66 +94,16 @@ switch (command) {
     rollback(config);
     break;
 
-  case "canary":
-    canary(config);
-    break;
-
   case "smoke":
-    await smoke(config, positionalArg);
+    if (!positionalArg) {
+      console.error("Usage: cf-deploy smoke <URL>");
+      process.exit(1);
+    }
+    await smoke(positionalArg);
     break;
 
   case "versions-json":
-    if (hasFlag("--latest")) {
-      printLatest(config);
-    } else if (hasFlag("--latest-env")) {
-      printLatestEnv(config);
-    } else {
-      await generateVersionsJson(config, {
-        healthCheck: hasFlag("--health-check"),
-      });
-    }
-    break;
-
-  case "preview": {
-    const pr = getFlag("--pr");
-    if (!pr) {
-      console.error("ERROR: --pr N is required");
-      process.exit(1);
-    }
-    preview(config, pr);
-    break;
-  }
-
-  case "list":
-    list(config);
-    break;
-
-  case "status":
-    status(config);
-    break;
-
-  case "versions":
-    versionsList(config);
-    break;
-
-  case "tail":
-    tail(config);
-    break;
-
-  case "secrets":
-    secretList(config);
-    break;
-
-  case "test":
-    runTests(config, positionalArg);
-    break;
-
-  case "delete":
-    deleteWorker(config, hasFlag("--yes"));
-    break;
-
-  case "whoami":
-    whoami();
+    generateVersionsJson(config, getFlag("--out"));
     break;
 
   default:

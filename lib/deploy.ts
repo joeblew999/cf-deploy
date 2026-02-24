@@ -1,206 +1,120 @@
 /**
- * Deploy commands — upload, preview, promote, list, and the one-step deploy workflow.
+ * Deploy commands — upload, promote, rollback.
  */
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import type { CfDeployConfig } from "./config.ts";
-import { VERSION_PICKER_PROVENANCE } from "./types.ts";
-import { getAppVersion } from "./versions.ts";
+import { readVersion } from "./config.ts";
 import {
+  VERSION_PICKER_JS,
   fetchWranglerVersions,
   versionAliasUrl,
   workerUrl,
   wrangler,
 } from "./wrangler.ts";
-import { loadVersionsJson } from "./manifest.ts";
-import { smoke } from "./smoke.ts";
-import versionPickerSource from "../web/version-picker.js" with { type: "text" };
+
+/** Copy version-picker.js into the worker's assets dir before upload. */
+function syncWebAssets(config: CfDeployConfig) {
+  if (!existsSync(config.assetsDir)) {
+    mkdirSync(config.assetsDir, { recursive: true });
+  }
+  writeFileSync(
+    join(config.assetsDir, "version-picker.js"),
+    VERSION_PICKER_JS,
+  );
+}
 
 // --- Upload ---
 
-/** Sync version-picker.js (embedded in binary) to the worker's assets dir. */
-function syncWebAssets(config: CfDeployConfig) {
-  const dest = join(config.assets.dir, "version-picker.js");
-  if (!existsSync(config.assets.dir)) {
-    mkdirSync(config.assets.dir, { recursive: true });
-  }
-  writeFileSync(dest, VERSION_PICKER_PROVENANCE + versionPickerSource);
-}
-
 export function upload(
   config: CfDeployConfig,
-  opts: { version?: string; tag?: string },
+  opts: { version?: string; tag?: string; pr?: string },
 ) {
-  const version = opts.version || getAppVersion(config);
-
-  // Sync web assets from toolkit before upload
+  const version = opts.version || readVersion(config.workerDir);
   syncWebAssets(config);
 
   const args = ["versions", "upload"];
+
+  // Inject APP_VERSION binding so /api/health returns it
+  if (version !== "0.0.0") {
+    args.push("--var", `APP_VERSION:${version}`);
+  }
+
+  if (opts.pr) {
+    // PR preview
+    const tag = `pr-${opts.pr}`;
+    args.push("--tag", tag, "--message", `PR #${opts.pr}`, "--preview-alias", tag);
+    console.log(`Uploading PR preview (${tag})...`);
+    wrangler(config, args);
+    const url = workerUrl(config, tag);
+    console.log(`\nPreview: ${url}`);
+    return url;
+  }
+
   if (opts.tag) {
-    args.push(
-      "--tag",
-      opts.tag,
-      "--message",
-      opts.tag,
-      "--preview-alias",
-      opts.tag,
-    );
-  } else if (version && version !== "0.0.0") {
+    args.push("--tag", opts.tag, "--message", opts.tag, "--preview-alias", opts.tag);
+  } else if (version !== "0.0.0") {
     const slug = version.replaceAll(".", "-").toLowerCase();
-    args.push(
-      "--tag",
-      `v${version}`,
-      "--message",
-      `v${version}`,
-      "--preview-alias",
-      `v${slug}`,
-    );
+    args.push("--tag", `v${version}`, "--message", `v${version}`, "--preview-alias", `v${slug}`);
   }
 
   console.log(`Uploading${version !== "0.0.0" ? ` v${version}` : ""}...`);
   wrangler(config, args);
 
-  if (opts.tag) {
-    console.log(`\nPreview: ${workerUrl(config, opts.tag)}`);
-  } else if (version !== "0.0.0") {
-    console.log(`\nPreview: ${versionAliasUrl(config, version)}`);
-    console.log(`To promote to production: cf-deploy promote`);
+  const url = opts.tag
+    ? workerUrl(config, opts.tag)
+    : version !== "0.0.0"
+      ? versionAliasUrl(config, version)
+      : "";
+
+  if (url) {
+    console.log(`\nPreview: ${url}`);
   }
-}
-
-// --- Preview (PR uploads) ---
-
-export function preview(config: CfDeployConfig, prNumber: string) {
-  const tag = `pr-${prNumber}`;
-  console.log(`Uploading PR preview (${tag})...`);
-
-  const args = [
-    "versions",
-    "upload",
-    "--tag",
-    tag,
-    "--message",
-    `PR #${prNumber}`,
-    "--preview-alias",
-    tag,
-  ];
-  wrangler(config, args);
-
-  console.log(`\nPreview: ${workerUrl(config, tag)}`);
+  return url;
 }
 
 // --- Promote ---
 
 export function promote(config: CfDeployConfig, targetVersion?: string) {
-  let data;
-  try {
-    data = loadVersionsJson(config);
-  } catch {
-    console.error(
-      `ERROR: Cannot read ${config.output.versions_json} — run 'cf-deploy versions-json' first`,
-    );
-    return process.exit(1);
-  }
+  const versions = fetchWranglerVersions(config);
 
   let target;
   if (targetVersion) {
     const v = targetVersion.replace(/^v/, "");
-    target = data.versions.find(
-      (r) => r.version === v || r.tag === targetVersion,
+    target = versions.find(
+      (r) => r.tag === targetVersion || r.tag === `v${v}`,
     );
     if (!target) {
-      console.error(
-        `ERROR: Version "${targetVersion}" not found in versions.json`,
-      );
-      console.error(`Available: ${data.versions.map((r) => r.tag).join(", ")}`);
+      console.error(`ERROR: Version "${targetVersion}" not found`);
+      console.error(`Available: ${versions.map((r) => r.tag).join(", ")}`);
       return process.exit(1);
     }
   } else {
-    target = data.versions[0];
+    // Latest tagged version
+    target = versions.find((v) => /^v\d/.test(v.tag));
+    if (!target) {
+      console.error("ERROR: No tagged versions found — upload first");
+      return process.exit(1);
+    }
   }
 
-  if (!target?.versionId) {
-    console.error("ERROR: No versionId found — upload first");
+  console.log(`Promoting ${target.tag} (${target.versionId}) to 100%...`);
+  wrangler(config, ["versions", "deploy", `${target.versionId}@100%`, "--yes"]);
+}
+
+// --- Rollback ---
+
+export function rollback(config: CfDeployConfig) {
+  const versions = fetchWranglerVersions(config);
+  const tagged = versions.filter((v) => /^v\d/.test(v.tag));
+
+  if (tagged.length < 2) {
+    console.error("ERROR: Only one version deployed — nothing to roll back to");
     return process.exit(1);
   }
 
-  const sha = target.git?.commitSha || "?";
-  console.log(
-    `Promoting ${target.versionId} (${target.tag}, commit ${sha}) to 100%...`,
-  );
-  wrangler(config, [
-    "versions",
-    "deploy",
-    `${target.versionId}@100%`,
-    "--yes",
-  ]);
-}
-
-// --- List ---
-
-export function list(config: CfDeployConfig) {
-  const entries = fetchWranglerVersions(config);
-
-  // Sort by date descending
-  entries.sort((a, b) => b.created.localeCompare(a.created));
-
-  const releases = entries.filter((e) => /^v\d/.test(e.tag));
-  const previews = entries.filter((e) => e.tag.startsWith("pr-"));
-
-  if (releases.length > 0) {
-    console.log("=== Release Versions ===\n");
-    for (const e of releases) {
-      const ver = e.tag.replace("v", "");
-      console.log(`  ${e.tag}  (${e.created})`);
-      console.log(`    ${versionAliasUrl(config, ver)}\n`);
-    }
-  }
-
-  if (previews.length > 0) {
-    console.log("=== PR Previews ===\n");
-    for (const e of previews) {
-      console.log(`  ${e.tag}  (${e.created})`);
-      console.log(`    ${workerUrl(config, e.tag)}\n`);
-    }
-  }
-
-  if (config.urls.production) {
-    console.log(`Production:  ${config.urls.production}`);
-  }
-}
-
-// --- Deploy (upload + smoke + summary) ---
-
-export async function deploy(
-  config: CfDeployConfig,
-  opts: { version?: string; tag?: string; skipSmoke?: boolean },
-) {
-  const version = opts.version || getAppVersion(config);
-  const tag = opts.tag;
-
-  // 1. Upload
-  upload(config, { version, tag });
-
-  // 2. Determine preview URL
-  let previewUrl: string;
-  if (tag) {
-    previewUrl = workerUrl(config, tag);
-  } else {
-    previewUrl = versionAliasUrl(config, version);
-  }
-
-  // 3. Smoke test the preview
-  if (!opts.skipSmoke) {
-    console.log("");
-    await smoke(config, previewUrl);
-  }
-
-  // 4. Summary
-  console.log(`\n--- Deploy complete ---`);
-  console.log(`  Preview:    ${previewUrl}`);
-  if (config.urls.production) {
-    console.log(`  Production: ${config.urls.production}`);
-  }
-  console.log(`\n  To go live:  cf-deploy promote`);
+  const current = tagged[0];
+  const previous = tagged[1];
+  console.log(`Rolling back: ${current.tag} → ${previous.tag}`);
+  wrangler(config, ["versions", "deploy", `${previous.versionId}@100%`, "--yes"]);
 }

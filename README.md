@@ -4,8 +4,6 @@ Cloudflare Workers deploy toolkit — wraps `wrangler` with versioning, smoke te
 
 ## Install
 
-**With Bun** (recommended — works as npx-style runner or project dependency):
-
 ```sh
 # Run directly (no install needed)
 bunx cf-deploy --help
@@ -14,74 +12,60 @@ bunx cf-deploy --help
 bun add -d cf-deploy
 ```
 
-**Standalone binary** (no Bun required):
-
-```sh
-curl -sSL https://raw.githubusercontent.com/joeblew999/cf-deploy/main/install.sh | bash
-sudo mv cf-deploy /usr/local/bin/
-```
-
 ## Quick Start
 
 ```sh
 # 1. Scaffold a new project
-cf-deploy init --name my-worker --domain my-org.workers.dev
+cf-deploy init --name my-worker
 cd my-worker && bun install
 
 # 2. Local dev
-bun x wrangler dev                    # → http://localhost:8788
+bun x wrangler dev                    # http://localhost:8788
 
-# 3. Deploy (upload + smoke test + preview URL)
-cf-deploy deploy
-
-# 4. Go live
-cf-deploy promote
+# 3. Deploy
+cf-deploy versions-json               # generate version manifest
+cf-deploy upload                       # tagged upload + preview URL
+cf-deploy smoke https://my-worker.workers.dev
+cf-deploy promote                      # go live
 ```
 
-That's it. Every version gets a permanent preview URL (e.g. `v1-2-0-my-worker.my-org.workers.dev`).
-
-## Config
-
-Create `cf-deploy.yml` in your project root (or let `cf-deploy init` generate it):
-
-```yaml
-worker:
-  name: my-worker
-  domain: my-org.workers.dev
-  dir: .
-
-urls:
-  production: https://my-worker.my-org.workers.dev
-
-github:
-  repo: myorg/my-project
-
-version:
-  source: package.json
-
-output:
-  versions_json: public/versions.json
-```
-
-All values can be overridden by env vars (`WORKER_NAME`, `WORKER_DOMAIN`, etc.).
+No config file needed — cf-deploy reads `wrangler.toml` directly.
 
 ## Commands
 
 | Command | What it does |
 |---------|-------------|
-| `deploy [--version X] [--tag T]` | Upload + smoke test + show preview URL |
-| `upload [--version X] [--tag T]` | Upload new version (does NOT promote) |
+| `upload [--version X] [--pr N]` | Upload a new version with preview URL |
 | `promote [--version X]` | Send version to 100% traffic |
 | `rollback` | Revert to previous version |
-| `canary` | Gradual traffic split (interactive) |
-| `smoke [URL]` | Health + index + custom checks |
-| `test [URL]` | Run Playwright tests |
-| `versions-json [--latest\|--latest-env]` | Generate versions manifest |
-| `preview --pr N` | Upload PR preview |
-| `list` | Show all versions with URLs |
-| `status` | Current deployment info |
-| `delete [--yes]` | Tear down the worker |
-| `init --name N --domain D` | Scaffold a new project |
+| `smoke <URL>` | Health + index check |
+| `versions-json` | Generate versions manifest for the picker |
+| `init --name N [--domain D]` | Scaffold a new project |
+
+Global flags: `--dir PATH`, `--name NAME`, `--domain DOMAIN`
+
+## How It Works
+
+```
+package.json "version" field
+      │
+      ▼
+cf-deploy versions-json   → queries wrangler for existing versions
+                             writes versions.json to your assets dir
+      │
+      ▼
+cf-deploy upload           → wrangler versions upload --tag v1.2.0
+                             injects APP_VERSION binding via --var
+                             versions.json ships with the deploy
+      │
+      ▼
+cf-deploy smoke <url>      → checks /api/health and index page
+      │
+      ▼
+cf-deploy promote          → wrangler versions deploy <id>@100%
+```
+
+One upload. No double cycle. The version in `/api/health` comes from `APP_VERSION` injected at upload time — no hardcoded version strings.
 
 ## Version Picker
 
@@ -92,39 +76,33 @@ Zero-dependency web component, auto-copied into your assets on every upload:
 <cf-version-picker></cf-version-picker>
 ```
 
-Reads `/versions.json` + `/api/health` at page load. Shows a dropdown of all deployed versions and PR previews with git metadata. Uses light DOM — inherits your page's CSS.
+Shows current version from `/api/health` + version history from `/versions.json`.
 
-## CI Integration
+## CI
 
 ```yaml
-# Deploy job (push to main)
-- run: cf-deploy upload
+# Deploy (push to main)
 - run: cf-deploy versions-json
-- run: cf-deploy upload            # re-upload with manifest included
-- run: cf-deploy versions-json     # regenerate with final version ID
-- run: cf-deploy smoke
-- run: cf-deploy test
+- run: cf-deploy upload
+- run: cf-deploy smoke $URL
 - run: cf-deploy promote
 
-# PR previews
-- run: cf-deploy preview --pr ${{ github.event.pull_request.number }}
-- run: cf-deploy smoke $PREVIEW_URL
-- run: cf-deploy test $PREVIEW_URL
+# PR preview
+- run: cf-deploy upload --pr ${{ github.event.pull_request.number }}
 ```
 
-See [.github/workflows/](.github/workflows/) for the complete working examples.
+See [.github/workflows/](.github/workflows/) for complete examples.
 
 ## Live Example
 
-See [example/](example/) for a complete working setup.
+See [example/](example/) for a working setup.
 
 | | URL |
 |---|---|
 | App | https://cf-deploy-example.gedw99.workers.dev |
 | Health | https://cf-deploy-example.gedw99.workers.dev/api/health |
-| Manifest | https://cf-deploy-example.gedw99.workers.dev/versions.json |
 
 ## Requirements
 
-- [Bun](https://bun.sh) (or use the standalone binary)
+- [Bun](https://bun.sh) (or standalone binary from Releases)
 - `wrangler` in your worker project (`bun add -d wrangler`)

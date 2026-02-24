@@ -1,11 +1,22 @@
 /**
- * Smoke test and Playwright test runner for deployed URLs.
+ * Smoke test a deployed URL — health + index check.
  */
-import { execSync } from "child_process";
-import type { CfDeployConfig } from "./config.ts";
-import { checkHealth, resolveTargetUrl } from "./manifest.ts";
 
-// --- Smoke test ---
+async function checkHealth(
+  url: string,
+  timeoutMs = 10_000,
+): Promise<string | null> {
+  try {
+    const res = await fetch(`${url}/api/health`, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { version?: string };
+    return body.version || null;
+  } catch {
+    return null;
+  }
+}
 
 async function checkIndex(url: string) {
   try {
@@ -19,68 +30,17 @@ async function checkIndex(url: string) {
   }
 }
 
-function runExtraChecks(config: CfDeployConfig, url: string) {
-  if (!config.smoke.extra) return;
-  try {
-    execSync(config.smoke.extra, {
-      stdio: "inherit",
-      env: { ...process.env, SMOKE_URL: url },
-    });
-  } catch {
-    console.error("  FAIL: extra smoke checks failed");
-    process.exit(1);
-  }
-}
-
-export async function smoke(config: CfDeployConfig, urlArg?: string) {
-  const resolved = resolveTargetUrl(config, urlArg);
-  if (!resolved) {
-    console.error(
-      "ERROR: No URL to smoke test. Pass a URL or set urls.production in cf-deploy.yml",
-    );
-    return process.exit(1);
-  }
-
-  const { url, expectedVersion } = resolved;
+export async function smoke(url: string) {
   console.log(`Smoke testing: ${url}\n`);
 
-  const healthVersion = await checkHealth(url, 10_000);
-  if (!healthVersion) {
+  const version = await checkHealth(url);
+  if (!version) {
     console.error(`  FAIL: /api/health unreachable`);
     process.exit(1);
   }
-  console.log(`  health:    OK (v${healthVersion})`);
+  console.log(`  health:    OK (v${version})`);
 
   await checkIndex(url);
-  runExtraChecks(config, url);
 
-  console.log("");
-  if (expectedVersion && healthVersion === expectedVersion) {
-    console.log(`PASS: All checks passed (v${expectedVersion})`);
-  } else if (expectedVersion) {
-    console.log(
-      `WARN: Version mismatch — expected v${expectedVersion}, got v${healthVersion}`,
-    );
-  } else {
-    console.log(`PASS: All checks passed (v${healthVersion})`);
-  }
-}
-
-// --- Playwright tests ---
-
-export function runTests(config: CfDeployConfig, urlArg?: string) {
-  const resolved = resolveTargetUrl(config, urlArg);
-  if (!resolved) {
-    console.error(
-      "ERROR: No URL to test. Pass a URL or set urls.production in cf-deploy.yml",
-    );
-    return process.exit(1);
-  }
-
-  console.log(`Running Playwright tests against: ${resolved.url}\n`);
-  execSync(`bun x playwright test`, {
-    cwd: config.worker.dir,
-    stdio: "inherit",
-    env: { ...process.env, TARGET_URL: resolved.url },
-  });
+  console.log(`\nPASS: All checks passed (v${version})`);
 }

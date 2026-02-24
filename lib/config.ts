@@ -1,158 +1,62 @@
 /**
- * Config reader — loads cf-deploy.yml and merges with env var overrides.
+ * Config — reads wrangler.toml for worker name and assets dir.
+ * No custom config file needed.
  */
 import { existsSync, readFileSync } from "fs";
-import { dirname, join, resolve } from "path";
-import { execSync } from "child_process";
+import { join, resolve } from "path";
 
 export interface CfDeployConfig {
-  worker: {
-    name: string;
-    domain: string;
-    dir: string;
-  };
-  urls: {
-    production: string;
-  };
-  github: {
-    repo: string;
-  };
-  version: {
-    source: string;
-  };
-  output: {
-    versions_json: string;
-  };
-  smoke: {
-    extra?: string;
-  };
-  assets: {
-    dir: string;
-  };
-  rootDir: string;
+  name: string;
+  assetsDir: string;
+  workerDir: string;
+  domain: string;
 }
 
-/** Read [assets].directory from wrangler.toml, if present */
-function readAssetsDirFromWrangler(workerDir: string): string | undefined {
-  const tomlPath = join(workerDir, "wrangler.toml");
-  if (!existsSync(tomlPath)) return undefined;
-  const text = readFileSync(tomlPath, "utf8");
-  const match = text.match(/\[assets\]\s*\n\s*directory\s*=\s*"([^"]+)"/);
-  return match?.[1];
+/** Parse worker name from wrangler.toml */
+function readName(text: string): string {
+  const m = text.match(/^name\s*=\s*"([^"]+)"/m);
+  return m?.[1] || "my-worker";
 }
 
-/** Find repo root via git from given dir, fallback to cwd */
-function findRoot(fromDir?: string): string {
+/** Parse [assets].directory from wrangler.toml */
+function readAssetsDir(text: string): string {
+  const m = text.match(/\[assets\]\s*\n\s*directory\s*=\s*"([^"]+)"/);
+  return m?.[1] || "public";
+}
+
+/** Read version from package.json in a directory */
+export function readVersion(dir: string): string {
+  if (process.env.APP_VERSION) return process.env.APP_VERSION;
+  const pkgPath = join(dir, "package.json");
+  if (!existsSync(pkgPath)) return "0.0.0";
   try {
-    const opts = fromDir
-      ? { encoding: "utf8" as const, cwd: fromDir }
-      : { encoding: "utf8" as const };
-    return execSync("git rev-parse --show-toplevel", opts).trim();
+    return JSON.parse(readFileSync(pkgPath, "utf8")).version || "0.0.0";
   } catch {
-    return process.cwd();
+    return "0.0.0";
   }
-}
-
-/** Parse a simple YAML-like config file (flat or one-level nested) */
-function parseSimpleYaml(text: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  let currentSection = "";
-
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-
-    const sectionMatch = line.match(/^(\w+):\s*$/);
-    if (sectionMatch) {
-      currentSection = sectionMatch[1];
-      continue;
-    }
-
-    const topMatch = line.match(/^(\w+):\s+(.+)/);
-    if (topMatch) {
-      result[topMatch[1]] = topMatch[2].trim().replace(/^["']|["']$/g, "");
-      currentSection = "";
-      continue;
-    }
-
-    const nestedMatch = line.match(/^\s+(\w+):\s+(.+)/);
-    if (nestedMatch && currentSection) {
-      result[`${currentSection}.${nestedMatch[1]}`] = nestedMatch[2]
-        .trim()
-        .replace(/^["']|["']$/g, "");
-    }
-  }
-  return result;
 }
 
 /**
- * Load config from cf-deploy.yml + env var overrides.
- * Searches: explicit --config, then CWD, then git root.
+ * Load config from wrangler.toml + env/flag overrides.
+ * Looks for wrangler.toml in --dir or CWD.
  */
-export function loadConfig(configPath?: string): CfDeployConfig {
-  const cwd = process.cwd();
-  const gitRoot = findRoot();
+export function loadConfig(opts?: {
+  dir?: string;
+  name?: string;
+  domain?: string;
+}): CfDeployConfig {
+  const workerDir = resolve(opts?.dir || process.env.CF_DEPLOY_DIR || ".");
+  const tomlPath = join(workerDir, "wrangler.toml");
 
-  const candidates = configPath
-    ? [resolve(configPath)]
-    : [
-        join(cwd, "cf-deploy.yml"),
-        join(cwd, "cf-deploy.yaml"),
-        join(gitRoot, "cf-deploy.yml"),
-        join(gitRoot, "cf-deploy.yaml"),
-      ];
-
-  let yaml: Record<string, string> = {};
-  let configDir = cwd;
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      yaml = parseSimpleYaml(readFileSync(p, "utf8"));
-      configDir = dirname(p);
-      break;
-    }
+  let toml = "";
+  if (existsSync(tomlPath)) {
+    toml = readFileSync(tomlPath, "utf8");
   }
 
-  const workerDir = resolve(
-    configDir,
-    process.env.WORKER_DIR || yaml["worker.dir"] || ".",
-  );
+  const name = opts?.name || process.env.CF_DEPLOY_NAME || readName(toml);
+  const assetsDir = resolve(workerDir, readAssetsDir(toml));
+  const domain =
+    opts?.domain || process.env.CF_DEPLOY_DOMAIN || "workers.dev";
 
-  return {
-    worker: {
-      name: process.env.WORKER_NAME || yaml["worker.name"] || "my-worker",
-      domain:
-        process.env.WORKER_DOMAIN || yaml["worker.domain"] || "workers.dev",
-      dir: workerDir,
-    },
-    urls: {
-      production: process.env.PRODUCTION_URL || yaml["urls.production"] || "",
-    },
-    github: {
-      repo: process.env.GITHUB_REPO || yaml["github.repo"] || "",
-    },
-    version: {
-      source: resolve(
-        configDir,
-        process.env.SCHEMA_FILE || yaml["version.source"] || "package.json",
-      ),
-    },
-    output: {
-      versions_json: resolve(
-        configDir,
-        process.env.OUTPUT_FILE ||
-          yaml["output.versions_json"] ||
-          "versions.json",
-      ),
-    },
-    smoke: {
-      extra: process.env.SMOKE_EXTRA_CMD || yaml["smoke.extra"],
-    },
-    assets: {
-      dir: resolve(
-        workerDir,
-        yaml["assets.dir"] || readAssetsDirFromWrangler(workerDir) || "public",
-      ),
-    },
-    rootDir: process.env.ROOT_DIR || findRoot(workerDir),
-  };
+  return { name, assetsDir, workerDir, domain };
 }

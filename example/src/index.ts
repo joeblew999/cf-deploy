@@ -3,14 +3,14 @@
  */
 import { Hono } from "hono";
 
-type Bindings = { ASSETS: Fetcher };
+type Bindings = { ASSETS: Fetcher; APP_VERSION?: string };
 
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.get("/api/health", (c) =>
   c.json({
     status: "ok",
-    version: "1.1.0",
+    version: c.env.APP_VERSION || "dev",
     timestamp: new Date().toISOString(),
   }),
 );

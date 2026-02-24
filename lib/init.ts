@@ -1,47 +1,23 @@
 /**
  * Scaffold a new cf-deploy project.
- * Creates cf-deploy.yml, wrangler.toml, src/index.ts, and public/ with version picker.
+ * Creates wrangler.toml, src/index.ts, public/index.html, and version picker.
  */
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
-import versionPickerSource from "../web/version-picker.js" with { type: "text" };
-import { VERSION_PICKER_PROVENANCE } from "./types.ts";
+import { VERSION_PICKER_JS } from "./wrangler.ts";
 
-export function init(name: string, domain: string) {
+export function init(name: string, domain = "workers.dev") {
   const cwd = process.cwd();
 
-  if (existsSync(join(cwd, "cf-deploy.yml"))) {
-    console.error("ERROR: cf-deploy.yml already exists in this directory");
+  if (existsSync(join(cwd, "wrangler.toml"))) {
+    console.error("ERROR: wrangler.toml already exists in this directory");
     process.exit(1);
   }
 
-  // cf-deploy.yml
+  // wrangler.toml
   writeFileSync(
-    join(cwd, "cf-deploy.yml"),
-    `worker:
-  name: ${name}
-  domain: ${domain}
-  dir: .
-
-urls:
-  production: https://${name}.${domain}
-
-github:
-  repo: ""
-
-version:
-  source: package.json
-
-output:
-  versions_json: public/versions.json
-`,
-  );
-
-  // wrangler.toml (only if not present)
-  if (!existsSync(join(cwd, "wrangler.toml"))) {
-    writeFileSync(
-      join(cwd, "wrangler.toml"),
-      `name = "${name}"
+    join(cwd, "wrangler.toml"),
+    `name = "${name}"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 workers_dev = true
@@ -53,24 +29,22 @@ directory = "public"
 [dev]
 port = 8788
 `,
-    );
-  }
+  );
 
   // src/index.ts
   mkdirSync(join(cwd, "src"), { recursive: true });
-  if (!existsSync(join(cwd, "src/index.ts"))) {
-    writeFileSync(
-      join(cwd, "src/index.ts"),
-      `import { Hono } from "hono";
+  writeFileSync(
+    join(cwd, "src/index.ts"),
+    `import { Hono } from "hono";
 
-type Bindings = { ASSETS: Fetcher };
+type Bindings = { ASSETS: Fetcher; APP_VERSION?: string };
 
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.get("/api/health", (c) =>
   c.json({
     status: "ok",
-    version: "1.0.0",
+    version: c.env.APP_VERSION || "dev",
     timestamp: new Date().toISOString(),
   })
 );
@@ -79,20 +53,19 @@ app.all("*", async (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default app;
 `,
-    );
-  }
+  );
 
-  // public/ with version picker
+  // public/
   mkdirSync(join(cwd, "public"), { recursive: true });
-
-  // Write version-picker.js (embedded in binary)
-  writeFileSync(join(cwd, "public", "version-picker.js"), VERSION_PICKER_PROVENANCE + versionPickerSource);
+  writeFileSync(
+    join(cwd, "public", "version-picker.js"),
+    VERSION_PICKER_JS,
+  );
 
   // index.html
-  if (!existsSync(join(cwd, "public/index.html"))) {
-    writeFileSync(
-      join(cwd, "public/index.html"),
-      `<!DOCTYPE html>
+  writeFileSync(
+    join(cwd, "public/index.html"),
+    `<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
@@ -131,10 +104,9 @@ export default app;
 </body>
 </html>
 `,
-    );
-  }
+  );
 
-  // package.json (only if not present)
+  // package.json
   if (!existsSync(join(cwd, "package.json"))) {
     writeFileSync(
       join(cwd, "package.json"),
@@ -155,11 +127,8 @@ export default app;
   console.log(`Initialized cf-deploy project: ${name}`);
   console.log(`\nNext steps:`);
   console.log(`  bun install`);
-  console.log(
-    `  bun x wrangler dev           # local dev at http://localhost:8788`,
-  );
-  console.log(`  bun x cf-deploy upload --version 1.0.0`);
-  console.log(`  bun x cf-deploy versions-json`);
-  console.log(`  bun x cf-deploy smoke`);
-  console.log(`  bun x cf-deploy promote`);
+  console.log(`  bun x wrangler dev           # local dev at http://localhost:8788`);
+  console.log(`  cf-deploy upload`);
+  console.log(`  cf-deploy smoke https://${name}.${domain}`);
+  console.log(`  cf-deploy promote`);
 }
