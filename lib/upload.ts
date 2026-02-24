@@ -5,33 +5,31 @@
  * Automatically copies web/version-picker.js into the worker's assets
  * directory before uploading, so consumers always get the latest component.
  */
-import { execSync } from "child_process";
-import { copyFileSync, existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import type { CfDeployConfig } from "./config.ts";
 import { getAppVersion } from "./version-source.ts";
 import { versionAliasUrl, workerUrl } from "./urls.ts";
+import { wrangler } from "./wrangler.ts";
+import versionPickerSource from "../web/version-picker.js" with { type: "text" };
 
-/** Copy toolkit web assets (version-picker.js) into the worker's assets dir. */
+/** Sync version-picker.js (embedded in binary) to the worker's assets dir. */
 function syncWebAssets(config: CfDeployConfig) {
-  const src = join(config.toolkitDir, "web", "version-picker.js");
-  if (!existsSync(src)) return;
-
   const dest = join(config.assets.dir, "version-picker.js");
   if (!existsSync(config.assets.dir)) {
     mkdirSync(config.assets.dir, { recursive: true });
   }
-  copyFileSync(src, dest);
+  writeFileSync(dest, versionPickerSource);
 }
 
 export function upload(config: CfDeployConfig, opts: { version?: string; tag?: string }) {
   const version = opts.version || getAppVersion(config);
-  const slug = version.replaceAll(".", "-");
+  const slug = version.replaceAll(".", "-").toLowerCase();
 
   // Sync web assets from toolkit before upload
   syncWebAssets(config);
 
-  const args = ["bun", "x", "wrangler", "versions", "upload"];
+  const args = ["versions", "upload"];
   if (opts.tag) {
     args.push("--tag", opts.tag, "--message", opts.tag, "--preview-alias", opts.tag);
   } else if (version && version !== "0.0.0") {
@@ -39,7 +37,7 @@ export function upload(config: CfDeployConfig, opts: { version?: string; tag?: s
   }
 
   console.log(`Uploading${version !== "0.0.0" ? ` v${version}` : ""}...`);
-  execSync(args.map(a => `"${a}"`).join(" "), { cwd: config.worker.dir, stdio: "inherit" });
+  wrangler(config, args);
 
   if (opts.tag) {
     console.log(`\nPreview: ${workerUrl(config, opts.tag)}`);

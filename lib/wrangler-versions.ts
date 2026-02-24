@@ -2,8 +2,8 @@
  * Parse wrangler versions list output into structured data.
  * Shared between versions.ts and list.ts.
  */
-import { execSync } from "child_process";
 import type { CfDeployConfig } from "./config.ts";
+import { wrangler } from "./wrangler.ts";
 
 export interface WranglerVersion {
   versionId: string;
@@ -13,11 +13,10 @@ export interface WranglerVersion {
 
 /** Run `wrangler versions list` and parse the output into structured entries. */
 export function fetchWranglerVersions(config: CfDeployConfig): WranglerVersion[] {
-  const raw = execSync("bun x wrangler versions list", {
-    cwd: config.worker.dir,
+  const raw = wrangler(config, ["versions", "list"], {
     encoding: "utf8",
     stdio: ["pipe", "pipe", "pipe"],
-  });
+  }).toString();
 
   return parseWranglerOutput(raw);
 }

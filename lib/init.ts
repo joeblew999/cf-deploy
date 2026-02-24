@@ -2,8 +2,9 @@
  * Scaffold a new cf-deploy project.
  * Creates cf-deploy.yml, wrangler.toml, src/index.ts, and public/ with version picker.
  */
-import { existsSync, mkdirSync, writeFileSync, copyFileSync } from "fs";
-import { join, dirname } from "path";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { join } from "path";
+import versionPickerSource from "../web/version-picker.js" with { type: "text" };
 
 export function init(name: string, domain: string) {
   const cwd = process.cwd();
@@ -83,11 +84,8 @@ export default app;
   // public/ with version picker
   mkdirSync(join(cwd, "public"), { recursive: true });
 
-  // Copy version-picker.js from cf-deploy
-  const pickerSrc = join(dirname(dirname(import.meta.path)), "web", "version-picker.js");
-  if (existsSync(pickerSrc)) {
-    copyFileSync(pickerSrc, join(cwd, "public", "version-picker.js"));
-  }
+  // Write version-picker.js (embedded in binary)
+  writeFileSync(join(cwd, "public", "version-picker.js"), versionPickerSource);
 
   // index.html
   if (!existsSync(join(cwd, "public/index.html"))) {

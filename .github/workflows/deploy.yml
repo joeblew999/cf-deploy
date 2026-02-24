@@ -15,42 +15,49 @@ jobs:
       - name: Install deps
         run: cd example && bun install
 
+      - name: Build cf-deploy binary
+        run: |
+          bun install
+          npm run build
+          chmod +x cf-deploy
+          echo "$(pwd)" >> $GITHUB_PATH
+
       - name: Upload version
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: bun ../bin/cf-deploy.ts upload
+        run: cf-deploy upload
 
       - name: Generate versions.json
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: bun ../bin/cf-deploy.ts versions-json
+        run: cf-deploy versions-json
 
       - name: Redeploy with updated manifest
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: bun ../bin/cf-deploy.ts upload
+        run: cf-deploy upload
 
       - name: Regenerate versions.json with final version ID
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: bun ../bin/cf-deploy.ts versions-json
+        run: cf-deploy versions-json
 
       - name: Smoke test
         working-directory: example
-        run: bun ../bin/cf-deploy.ts smoke
+        run: cf-deploy smoke
 
       - name: Playwright tests
         working-directory: example
         run: |
           bun x playwright install --with-deps chromium
-          bun ../bin/cf-deploy.ts test
+          cf-deploy test
 
       - name: Promote to production
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: bun ../bin/cf-deploy.ts promote
+        run: cf-deploy promote

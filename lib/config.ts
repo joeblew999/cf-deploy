@@ -9,7 +9,7 @@ export interface CfDeployConfig {
   worker: {
     name: string;
     domain: string;
-    dir: string; // absolute path
+    dir: string;
   };
   urls: {
     production: string;
@@ -18,23 +18,22 @@ export interface CfDeployConfig {
     repo: string;
   };
   version: {
-    source: string; // absolute path to JSON file with .version
+    source: string;
   };
   output: {
-    versions_json: string; // absolute path
+    versions_json: string;
   };
   smoke: {
-    extra?: string; // optional shell command for project-specific checks
+    extra?: string;
   };
   assets: {
-    dir: string; // absolute path to static assets directory
+    dir: string;
   };
-  toolkitDir: string; // absolute path to cf-deploy toolkit root
-  rootDir: string; // absolute path to repo root
+  rootDir: string;
 }
 
 /** Read [assets].directory from wrangler.toml, if present */
-function readAssetsDir(workerDir: string): string | undefined {
+function readAssetsDirFromWrangler(workerDir: string): string | undefined {
   const tomlPath = join(workerDir, "wrangler.toml");
   if (!existsSync(tomlPath)) return undefined;
   const text = readFileSync(tomlPath, "utf8");
@@ -52,29 +51,21 @@ function findRoot(fromDir?: string): string {
   }
 }
 
-/**
- * Parse a simple YAML-like config file.
- * Handles nested keys (one level) like:
- *   worker:
- *     name: truck-cad
- * Returns flat dotted keys: { "worker.name": "truck-cad" }
- */
+/** Parse a simple YAML-like config file (flat or one-level nested) */
 function parseSimpleYaml(text: string): Record<string, string> {
   const result: Record<string, string> = {};
   let currentSection = "";
 
   for (const line of text.split("\n")) {
-    // Skip comments and blank lines
-    if (/^\s*#/.test(line) || /^\s*$/.test(line)) continue;
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
 
-    // Top-level key (no leading whitespace, ends with colon)
     const sectionMatch = line.match(/^(\w+):\s*$/);
     if (sectionMatch) {
       currentSection = sectionMatch[1];
       continue;
     }
 
-    // Top-level key with value
     const topMatch = line.match(/^(\w+):\s+(.+)/);
     if (topMatch) {
       result[topMatch[1]] = topMatch[2].trim().replace(/^["']|["']$/g, "");
@@ -82,37 +73,33 @@ function parseSimpleYaml(text: string): Record<string, string> {
       continue;
     }
 
-    // Nested key (indented)
     const nestedMatch = line.match(/^\s+(\w+):\s+(.+)/);
     if (nestedMatch && currentSection) {
-      const key = `${currentSection}.${nestedMatch[1]}`;
-      result[key] = nestedMatch[2].trim().replace(/^["']|["']$/g, "");
+      result[`${currentSection}.${nestedMatch[1]}`] = nestedMatch[2].trim().replace(/^["']|["']$/g, "");
     }
   }
-
   return result;
 }
 
 /**
  * Load config from cf-deploy.yml + env var overrides.
  * Searches: explicit --config, then CWD, then git root.
- * Relative paths in config resolve from the config file's directory.
  */
 export function loadConfig(configPath?: string): CfDeployConfig {
   const cwd = process.cwd();
   const gitRoot = findRoot();
 
-  // Search for config: explicit path → CWD → git root
   const candidates = configPath
     ? [resolve(configPath)]
     : [
         join(cwd, "cf-deploy.yml"),
         join(cwd, "cf-deploy.yaml"),
-        ...(cwd !== gitRoot ? [join(gitRoot, "cf-deploy.yml"), join(gitRoot, "cf-deploy.yaml")] : []),
+        join(gitRoot, "cf-deploy.yml"),
+        join(gitRoot, "cf-deploy.yaml"),
       ];
 
   let yaml: Record<string, string> = {};
-  let configDir = cwd; // base directory for resolving relative paths
+  let configDir = cwd;
   for (const p of candidates) {
     if (existsSync(p)) {
       yaml = parseSimpleYaml(readFileSync(p, "utf8"));
@@ -121,42 +108,32 @@ export function loadConfig(configPath?: string): CfDeployConfig {
     }
   }
 
-  // Build config with env var overrides
-  const workerName = process.env.WORKER_NAME || yaml["worker.name"] || "my-worker";
-  const workerDomain = process.env.WORKER_DOMAIN || yaml["worker.domain"] || "workers.dev";
-  const workerDirRel = process.env.WORKER_DIR || yaml["worker.dir"] || ".";
-  const workerDir = resolve(configDir, workerDirRel);
-
-  // rootDir: prefer ROOT_DIR env, then worker dir's git root, fallback to config dir
-  const rootDir = process.env.ROOT_DIR || findRoot(workerDir);
-
-  const productionUrl = process.env.PRODUCTION_URL || yaml["urls.production"] || "";
-  const githubRepo = process.env.GITHUB_REPO || yaml["github.repo"] || "";
-
-  const versionSourceRel = process.env.SCHEMA_FILE || yaml["version.source"] || "package.json";
-  const versionSource = resolve(configDir, versionSourceRel);
-
-  const outputRel = process.env.OUTPUT_FILE || yaml["output.versions_json"] || "versions.json";
-  const outputFile = resolve(configDir, outputRel);
-
-  const smokeExtra = process.env.SMOKE_EXTRA_CMD || yaml["smoke.extra"] || undefined;
-
-  // Assets directory: read from wrangler.toml [assets].directory, default "public"
-  const assetsDirRel = yaml["assets.dir"] || readAssetsDir(workerDir) || "public";
-  const assetsDir = resolve(workerDir, assetsDirRel);
-
-  // Toolkit root: where cf-deploy itself lives (for copying web/ assets)
-  const toolkitDir = resolve(dirname(dirname(import.meta.path)), ".");
+  const workerDir = resolve(configDir, process.env.WORKER_DIR || yaml["worker.dir"] || ".");
 
   return {
-    worker: { name: workerName, domain: workerDomain, dir: workerDir },
-    urls: { production: productionUrl },
-    github: { repo: githubRepo },
-    version: { source: versionSource },
-    output: { versions_json: outputFile },
-    smoke: { extra: smokeExtra },
-    assets: { dir: assetsDir },
-    toolkitDir,
-    rootDir,
+    worker: {
+      name: process.env.WORKER_NAME || yaml["worker.name"] || "my-worker",
+      domain: process.env.WORKER_DOMAIN || yaml["worker.domain"] || "workers.dev",
+      dir: workerDir,
+    },
+    urls: {
+      production: process.env.PRODUCTION_URL || yaml["urls.production"] || "",
+    },
+    github: {
+      repo: process.env.GITHUB_REPO || yaml["github.repo"] || "",
+    },
+    version: {
+      source: resolve(configDir, process.env.SCHEMA_FILE || yaml["version.source"] || "package.json"),
+    },
+    output: {
+      versions_json: resolve(configDir, process.env.OUTPUT_FILE || yaml["output.versions_json"] || "versions.json"),
+    },
+    smoke: {
+      extra: process.env.SMOKE_EXTRA_CMD || yaml["smoke.extra"],
+    },
+    assets: {
+      dir: resolve(workerDir, yaml["assets.dir"] || readAssetsDirFromWrangler(workerDir) || "public"),
+    },
+    rootDir: process.env.ROOT_DIR || findRoot(workerDir),
   };
 }

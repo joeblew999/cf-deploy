@@ -5,3 +5,5 @@ bun.lockb
 example/bun.lock
 example/public/version-picker.js
 test-results/
+dist/
+cf-deploy

@@ -30,6 +30,7 @@ import { list } from "../lib/list.ts";
 import { rollback, canary, status, versionsList, tail, secretList, whoami, deleteWorker } from "../lib/wrangler.ts";
 import { runTests } from "../lib/test.ts";
 import { init } from "../lib/init.ts";
+import pkg from "../package.json";
 
 const args = process.argv.slice(2);
 
@@ -45,29 +46,34 @@ function hasFlag(name: string): boolean {
   return args.includes(name);
 }
 
+if (args.length === 1 && (args[0] === "--version" || args[0] === "-v" || args[0] === "version")) {
+  console.log(pkg.version);
+  process.exit(0);
+}
+
 const configPath = getFlag("--config");
 
-// Find the command — skip global flags (--config PATH)
-let command: string | undefined;
-let commandIdx = -1;
-for (let i = 0; i < args.length; i++) {
-  if (args[i] === "--config") { i++; continue; } // skip --config and its value
-  if (args[i].startsWith("-")) continue;
-  command = args[i];
-  commandIdx = i;
-  break;
-}
-
-/** Get the first positional arg after the command (not a flag) */
-function getPositionalArg(): string | undefined {
-  for (let i = commandIdx + 1; i < args.length; i++) {
-    if (args[i] === "--config") { i++; continue; }
-    if (args[i].startsWith("--")) continue;
-    return args[i];
+// Commands that don't need a config file (init, whoami)
+if (args[0] === "init") {
+  const name = getFlag("--name");
+  const domain = getFlag("--domain");
+  if (!name || !domain) {
+    console.error("Usage: cf-deploy init --name my-worker --domain example.workers.dev");
+    process.exit(1);
   }
-  return undefined;
+  init(name, domain);
+  process.exit(0);
 }
 
+if (args[0] === "whoami") {
+  whoami();
+  process.exit(0);
+}
+
+const config = loadConfig(configPath);
+const command = args[0];
+
+// Help text
 if (!command || command === "--help" || command === "-h") {
   console.log(`cf-deploy — Cloudflare Workers deploy toolkit
 
@@ -84,7 +90,7 @@ Commands:
   list                             Show all versions with URLs
   status                           Show current deployment
   versions                         List recent versions (raw wrangler)
-  delete                           Delete the Worker (teardown)
+  delete [--yes]                   Delete the Worker (teardown)
   tail                             Tail live Worker logs
   secrets                          List Worker secrets
   whoami                           Show Cloudflare auth info
@@ -97,19 +103,8 @@ Options:
   process.exit(0);
 }
 
-// init doesn't need config — handle it before loadConfig
-if (command === "init") {
-  const name = getFlag("--name");
-  const domain = getFlag("--domain");
-  if (!name || !domain) {
-    console.error("Usage: cf-deploy init --name my-worker --domain example.workers.dev");
-    process.exit(1);
-  }
-  init(name, domain);
-  process.exit(0);
-}
-
-const config = loadConfig(configPath);
+/** Get the first positional arg after the command (e.g. `smoke URL`) */
+const positionalArg = args.slice(1).find(a => !a.startsWith("-"));
 
 switch (command) {
   case "deploy":
@@ -137,7 +132,7 @@ switch (command) {
     break;
 
   case "smoke":
-    await smoke(config, getPositionalArg());
+    await smoke(config, positionalArg);
     break;
 
   case "versions-json":
@@ -181,11 +176,11 @@ switch (command) {
     break;
 
   case "test":
-    runTests(config, getPositionalArg());
+    runTests(config, positionalArg);
     break;
 
   case "delete":
-    deleteWorker(config);
+    deleteWorker(config, hasFlag("--yes"));
     break;
 
   case "whoami":

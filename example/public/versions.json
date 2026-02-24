@@ -1,22 +1,23 @@
 {
   "production": "https://cf-deploy-example.gedw99.workers.dev",
   "github": "https://github.com/joeblew999/cf-deploy",
-  "generated": "2026-02-24T03:53:42.474Z",
+  "generated": "2026-02-24T05:31:08.709Z",
   "versions": [
+    {
+      "version": "9.9.1771910395",
+      "tag": "v9.9.1771910395",
+      "date": "2026-02-24T05:20:04.328Z",
+      "versionId": "01fce3d3-90c0-4b2c-a44c-ae7140be219b",
+      "url": "https://v9-9-1771910395-cf-deploy-example.gedw99.workers.dev",
+      "previewUrl": "https://01fce3d3-90c0-4b2c-a44c-ae7140be219b-cf-deploy-example.gedw99.workers.dev"
+    },
     {
       "version": "1.1.0",
       "tag": "v1.1.0",
-      "date": "2026-02-24T03:53:26.507Z",
-      "versionId": "c159ef0d-6219-4cb8-9e3f-8452b186dfc1",
+      "date": "2026-02-24T04:42:43.017Z",
+      "versionId": "9543d1e2-604a-4136-9ec8-f3874c6e39d8",
       "url": "https://v1-1-0-cf-deploy-example.gedw99.workers.dev",
-      "previewUrl": "https://c159ef0d-6219-4cb8-9e3f-8452b186dfc1-cf-deploy-example.gedw99.workers.dev",
-      "git": {
-        "commitSha": "ec03f11",
-        "commitFull": "ec03f111e7ad020c61736a1cc647c19baeaf6705",
-        "commitMessage": "feat: upgraded version picker GUI, PR previews, init scaffolding, ADR",
-        "branch": "main",
-        "commitUrl": "https://github.com/joeblew999/cf-deploy/commit/ec03f111e7ad020c61736a1cc647c19baeaf6705"
-      }
+      "previewUrl": "https://9543d1e2-604a-4136-9ec8-f3874c6e39d8-cf-deploy-example.gedw99.workers.dev"
     },
     {
       "version": "1.0.0",
@@ -24,13 +25,36 @@
       "date": "2026-02-24T03:23:16.151Z",
       "versionId": "e8ea0f0e-610e-4234-b597-4a50c72d796b",
       "url": "https://v1-0-0-cf-deploy-example.gedw99.workers.dev",
-      "previewUrl": "https://e8ea0f0e-610e-4234-b597-4a50c72d796b-cf-deploy-example.gedw99.workers.dev",
+      "previewUrl": "https://e8ea0f0e-610e-4234-b597-4a50c72d796b-cf-deploy-example.gedw99.workers.dev"
+    },
+    {
+      "version": "0.0.test-1771911051",
+      "tag": "v0.0.test-1771911051",
+      "date": "2026-02-24T05:31:04.861Z",
+      "versionId": "ebe4e92a-a6fd-4a4d-be81-d211e9387d29",
+      "url": "https://v0-0-test-1771911051-cf-deploy-example.gedw99.workers.dev",
+      "previewUrl": "https://ebe4e92a-a6fd-4a4d-be81-d211e9387d29-cf-deploy-example.gedw99.workers.dev",
       "git": {
-        "commitSha": "e4b594f",
-        "commitFull": "e4b594f99e58c2355f74018af3f9a29a6e999823",
-        "commitMessage": "feat: init command, smart promote/rollback, CI workflows, developer workflow docs",
+        "commitSha": "0040712",
+        "commitFull": "0040712bec2d07952480d18c94606ae4d107c853",
+        "commitMessage": "chore: sync example version-picker.js with web/ source",
         "branch": "main",
-        "commitUrl": "https://github.com/joeblew999/cf-deploy/commit/e4b594f99e58c2355f74018af3f9a29a6e999823"
+        "commitUrl": "https://github.com/joeblew999/cf-deploy/commit/0040712bec2d07952480d18c94606ae4d107c853"
+      }
+    },
+    {
+      "version": "0.0.test-1771910880",
+      "tag": "v0.0.test-1771910880",
+      "date": "2026-02-24T05:28:10.136Z",
+      "versionId": "ec6905a2-ffa7-4768-ace0-2828dea52b80",
+      "url": "https://v0-0-test-1771910880-cf-deploy-example.gedw99.workers.dev",
+      "previewUrl": "https://ec6905a2-ffa7-4768-ace0-2828dea52b80-cf-deploy-example.gedw99.workers.dev",
+      "git": {
+        "commitSha": "0040712",
+        "commitFull": "0040712bec2d07952480d18c94606ae4d107c853",
+        "commitMessage": "chore: sync example version-picker.js with web/ source",
+        "branch": "main",
+        "commitUrl": "https://github.com/joeblew999/cf-deploy/commit/0040712bec2d07952480d18c94606ae4d107c853"
       }
     }
   ],

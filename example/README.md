@@ -31,22 +31,22 @@ The version picker works on localhost too — it detects `localhost` and shows "
 
 ```sh
 # Upload a new version (does NOT go to production)
-bun ../bin/cf-deploy.ts upload --version 1.0.0
+cf-deploy upload --version 1.0.0
 
 # Generate versions.json manifest
-bun ../bin/cf-deploy.ts versions-json
+cf-deploy versions-json
 
 # Smoke test the preview URL
-bun ../bin/cf-deploy.ts smoke
+cf-deploy smoke
 
 # Promote to production (100% traffic)
-bun ../bin/cf-deploy.ts promote
+cf-deploy promote
 
 # View all deployed versions
-bun ../bin/cf-deploy.ts list
+cf-deploy list
 
 # Tear down the worker entirely
-bun ../bin/cf-deploy.ts delete
+cf-deploy delete
 ```
 
 ## How It Works
@@ -64,11 +64,11 @@ bun ../bin/cf-deploy.ts delete
 ```yaml
 tasks:
   "cf:upload":
-    cmds: [bun .src/cf-deploy/bin/cf-deploy.ts upload]
+    cmds: [cf-deploy upload]
   "cf:promote":
-    cmds: [bun .src/cf-deploy/bin/cf-deploy.ts promote]
+    cmds: [cf-deploy promote]
   "cf:smoke":
-    cmds: [bun .src/cf-deploy/bin/cf-deploy.ts smoke]
+    cmds: [cf-deploy smoke]
 ```
 
 ### npm scripts
@@ -76,8 +76,8 @@ tasks:
 ```json
 {
   "scripts": {
-    "deploy:upload": "bun .src/cf-deploy/bin/cf-deploy.ts upload",
-    "deploy:promote": "bun .src/cf-deploy/bin/cf-deploy.ts promote"
+    "deploy:upload": "cf-deploy upload",
+    "deploy:promote": "cf-deploy promote"
   }
 }
 ```
@@ -85,7 +85,7 @@ tasks:
 ### Makefile
 
 ```makefile
-CF = bun .src/cf-deploy/bin/cf-deploy.ts
+CF = cf-deploy
 upload:  ; $(CF) upload
 promote: ; $(CF) promote
 smoke:   ; $(CF) smoke

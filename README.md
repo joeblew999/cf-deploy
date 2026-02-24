@@ -121,21 +121,26 @@ This means:
 
 ## Quick Start
 
+The toolkit is designed to be used without "polluting" your global system. You can run it instantly via your favorite package manager or as a standalone binary.
+
+### 1. Run Instantly (No Installation)
+
+**Via Bun (Fastest)**
 ```sh
-# Clone into your project (follows .src/ vendor pattern)
-git clone --depth 1 https://github.com/joeblew999/cf-deploy.git .src/cf-deploy
+bun x cf-deploy init --name my-worker --domain my-org.workers.dev
+```
 
-# Copy and customize config
-cp .src/cf-deploy/example/cf-deploy.yml ./cf-deploy.yml
+**Via NPM**
+```sh
+npx cf-deploy init --name my-worker --domain my-org.workers.dev
+```
 
-# Deploy and get a preview URL
-bun .src/cf-deploy/bin/cf-deploy.ts deploy
+### 2. Standalone Binary (Zero Dependencies)
+If you don't use NPM or Bun, download the single executable file:
 
-# Or step-by-step
-bun .src/cf-deploy/bin/cf-deploy.ts upload --version 1.0.0
-bun .src/cf-deploy/bin/cf-deploy.ts versions-json
-bun .src/cf-deploy/bin/cf-deploy.ts smoke
-bun .src/cf-deploy/bin/cf-deploy.ts promote
+```sh
+curl -sSL https://raw.githubusercontent.com/joeblew999/cf-deploy/main/install.sh | bash
+./cf-deploy init ...
 ```
 
 See [example/](example/) for a complete working setup with Hono, static assets, and the version picker.
@@ -181,7 +186,7 @@ cf-deploy preview --pr N                   Upload PR preview
 cf-deploy list                             Show all versions with URLs
 cf-deploy status                           Current deployment info
 cf-deploy versions                         Raw wrangler versions list
-cf-deploy delete                           Delete the Worker (full teardown)
+cf-deploy delete [--yes]                   Delete the Worker (full teardown)
 cf-deploy tail                             Tail live Worker logs
 cf-deploy secrets                          List Worker secrets
 cf-deploy whoami                           Cloudflare auth info
@@ -206,24 +211,25 @@ Works with **any** task runner or none at all:
 ```yaml
 # go-task
 "cf:deploy":
-  cmds: [bun .src/cf-deploy/bin/cf-deploy.ts deploy]
+  cmds: [cf-deploy deploy]
 ```
 
 ```json
 // npm scripts
-{ "deploy": "bun .src/cf-deploy/bin/cf-deploy.ts deploy" }
+{ "deploy": "cf-deploy deploy" }
 ```
 
 ```makefile
 # Makefile
-deploy: ; bun .src/cf-deploy/bin/cf-deploy.ts deploy
+deploy: ; cf-deploy deploy
 ```
 
 ## Architecture
 
-See [ADR.md](ADR.md) for the full design rationale.
+See [docs/adr/](docs/adr/) for the full design rationale.
 
 ## Requirements
 
-- [Bun](https://bun.sh/) (runs TypeScript natively)
-- [wrangler](https://developers.cloudflare.com/workers/wrangler/) (installed per-project via `bun install`)
+- **cf-deploy binary**: Downloaded from GitHub Releases (no runtime dependency).
+- **wrangler**: Installed in your worker project (via `npm install wrangler` or `bun add wrangler`).
+- **Node.js or Bun**: To run `wrangler` within your project.

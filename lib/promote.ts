@@ -3,10 +3,10 @@
  * By default promotes the latest from versions.json.
  * With --version X, promotes that specific tagged version.
  */
-import { execSync } from "child_process";
 import { readFileSync } from "fs";
 import type { CfDeployConfig } from "./config.ts";
 import type { VersionsJson } from "./types.ts";
+import { wrangler } from "./wrangler.ts";
 
 export function promote(config: CfDeployConfig, targetVersion?: string) {
   let data: VersionsJson;
@@ -38,8 +38,5 @@ export function promote(config: CfDeployConfig, targetVersion?: string) {
 
   const sha = target.git?.commitSha || "?";
   console.log(`Promoting ${target.versionId} (${target.tag}, commit ${sha}) to 100%...`);
-  execSync(`bun x wrangler versions deploy "${target.versionId}@100%" --yes`, {
-    cwd: config.worker.dir,
-    stdio: "inherit",
-  });
+  wrangler(config, ["versions", "deploy", `${target.versionId}@100%`, "--yes"]);
 }

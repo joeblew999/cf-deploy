@@ -1,10 +1,20 @@
 /**
  * Wrangler pass-through and enhanced commands.
  */
-import { execSync } from "child_process";
+import { execSync, type ExecSyncOptions } from "child_process";
 import { readFileSync } from "fs";
 import type { CfDeployConfig } from "./config.ts";
 import type { VersionsJson } from "./types.ts";
+
+/** Execute a wrangler command with the correct --name and working directory */
+export function wrangler(config: CfDeployConfig, args: string[], options: ExecSyncOptions = {}) {
+  const fullArgs = ["bun", "x", "wrangler", ...args, "--name", config.worker.name];
+  return execSync(fullArgs.map(a => `"${a}"`).join(" "), {
+    cwd: config.worker.dir,
+    stdio: "inherit",
+    ...options,
+  });
+}
 
 export function rollback(config: CfDeployConfig) {
   // Smart rollback: promote the previous version from versions.json
@@ -14,7 +24,7 @@ export function rollback(config: CfDeployConfig) {
   } catch {
     // Fallback to interactive wrangler rollback if no versions.json
     console.log("No versions.json — falling back to interactive wrangler rollback");
-    execSync("bun x wrangler rollback", { cwd: config.worker.dir, stdio: "inherit" });
+    wrangler(config, ["rollback"]);
     return;
   }
 
@@ -36,26 +46,23 @@ export function rollback(config: CfDeployConfig) {
   console.log(`Rolling back: ${current.tag} (${curSha}) → ${previous.tag} (${prevSha})`);
   console.log(`  Review: ${previous.git?.commitUrl || "no commit link"}\n`);
   const vid = previous.versionId;
-  execSync(`bun x wrangler versions deploy "${vid}@100%" --yes`, {
-    cwd: config.worker.dir,
-    stdio: "inherit",
-  });
+  wrangler(config, ["versions", "deploy", `${vid}@100%`, "--yes"]);
 }
 
 export function canary(config: CfDeployConfig) {
-  execSync("bun x wrangler versions deploy", { cwd: config.worker.dir, stdio: "inherit" });
+  wrangler(config, ["versions", "deploy"]);
 }
 
 export function status(config: CfDeployConfig) {
-  execSync("bun x wrangler deployments list", { cwd: config.worker.dir, stdio: "inherit" });
+  wrangler(config, ["deployments", "list"]);
 }
 
 export function versionsList(config: CfDeployConfig) {
-  execSync("bun x wrangler versions list", { cwd: config.worker.dir, stdio: "inherit" });
+  wrangler(config, ["versions", "list"]);
 }
 
 export function tail(config: CfDeployConfig) {
-  execSync("bun x wrangler tail", { cwd: config.worker.dir, stdio: "inherit" });
+  wrangler(config, ["tail"]);
 }
 
 export function whoami() {
@@ -63,10 +70,18 @@ export function whoami() {
 }
 
 export function secretList(config: CfDeployConfig) {
-  execSync("bun x wrangler secret list", { cwd: config.worker.dir, stdio: "inherit" });
+  wrangler(config, ["secret", "list"]);
 }
 
-export function deleteWorker(config: CfDeployConfig) {
+export function deleteWorker(config: CfDeployConfig, force: boolean = false) {
   console.log(`Deleting worker: ${config.worker.name}`);
-  execSync(`bun x wrangler delete --name "${config.worker.name}"`, { cwd: config.worker.dir, stdio: "inherit" });
+  if (force) {
+    // Pipe 'yes' for non-interactive deletion
+    execSync(`yes | bun x wrangler delete --name "${config.worker.name}"`, { 
+      cwd: config.worker.dir, 
+      stdio: "inherit" 
+    });
+  } else {
+    wrangler(config, ["delete"]);
+  }
 }
