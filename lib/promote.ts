@@ -13,7 +13,9 @@ export function promote(config: CfDeployConfig, targetVersion?: string) {
   try {
     data = JSON.parse(readFileSync(config.output.versions_json, "utf8"));
   } catch {
-    console.error(`ERROR: Cannot read ${config.output.versions_json} — run 'cf-deploy versions-json' first`);
+    console.error(
+      `ERROR: Cannot read ${config.output.versions_json} — run 'cf-deploy versions-json' first`,
+    );
     process.exit(1);
   }
 
@@ -21,9 +23,13 @@ export function promote(config: CfDeployConfig, targetVersion?: string) {
   if (targetVersion) {
     // Find by version number or tag
     const v = targetVersion.replace(/^v/, "");
-    target = data.versions.find((r) => r.version === v || r.tag === targetVersion);
+    target = data.versions.find(
+      (r) => r.version === v || r.tag === targetVersion,
+    );
     if (!target) {
-      console.error(`ERROR: Version "${targetVersion}" not found in versions.json`);
+      console.error(
+        `ERROR: Version "${targetVersion}" not found in versions.json`,
+      );
       console.error(`Available: ${data.versions.map((r) => r.tag).join(", ")}`);
       process.exit(1);
     }
@@ -37,6 +43,8 @@ export function promote(config: CfDeployConfig, targetVersion?: string) {
   }
 
   const sha = target.git?.commitSha || "?";
-  console.log(`Promoting ${target.versionId} (${target.tag}, commit ${sha}) to 100%...`);
+  console.log(
+    `Promoting ${target.versionId} (${target.tag}, commit ${sha}) to 100%...`,
+  );
   wrangler(config, ["versions", "deploy", `${target.versionId}@100%`, "--yes"]);
 }

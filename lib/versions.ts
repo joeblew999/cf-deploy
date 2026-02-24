@@ -13,7 +13,9 @@ import { workerUrl, versionAliasUrl } from "./urls.ts";
 /** Check health of a URL */
 async function checkHealth(url: string): Promise<boolean> {
   try {
-    const res = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`${url}/api/health`, {
+      signal: AbortSignal.timeout(5000),
+    });
     return res.ok;
   } catch {
     return false;
@@ -22,7 +24,9 @@ async function checkHealth(url: string): Promise<boolean> {
 
 /** Print latest version as JSON (--latest mode) */
 export function printLatest(config: CfDeployConfig) {
-  const data: VersionsJson = JSON.parse(readFileSync(config.output.versions_json, "utf8"));
+  const data: VersionsJson = JSON.parse(
+    readFileSync(config.output.versions_json, "utf8"),
+  );
   const latest = data.versions[0];
   if (!latest) {
     console.error("No versions found in versions.json");
@@ -33,7 +37,9 @@ export function printLatest(config: CfDeployConfig) {
 
 /** Print latest version as shell-eval-able vars (--latest-env mode) */
 export function printLatestEnv(config: CfDeployConfig) {
-  const data: VersionsJson = JSON.parse(readFileSync(config.output.versions_json, "utf8"));
+  const data: VersionsJson = JSON.parse(
+    readFileSync(config.output.versions_json, "utf8"),
+  );
   const latest = data.versions[0];
   if (!latest) {
     console.error("No versions found in versions.json");
@@ -42,14 +48,19 @@ export function printLatestEnv(config: CfDeployConfig) {
   console.log(`VERSION_ID="${latest.versionId}"`);
   console.log(`VERSION="${latest.version}"`);
   console.log(`COMMIT_SHA="${latest.git?.commitSha || "?"}"`);
-  console.log(`COMMIT_MSG="${(latest.git?.commitMessage || "").replace(/"/g, '\\"')}"`);
+  console.log(
+    `COMMIT_MSG="${(latest.git?.commitMessage || "").replace(/"/g, '\\"')}"`,
+  );
   console.log(`COMMAND_COUNT="${latest.commandCount || 0}"`);
   console.log(`PREVIEW_URL="${latest.previewUrl || latest.url}"`);
   console.log(`ALIAS_URL="${latest.url}"`);
 }
 
 /** Generate versions.json */
-export async function generateVersionsJson(config: CfDeployConfig, opts?: { healthCheck?: boolean }) {
+export async function generateVersionsJson(
+  config: CfDeployConfig,
+  opts?: { healthCheck?: boolean },
+) {
   const rootDir = config.rootDir;
   const healthCheck = opts?.healthCheck || process.env.HEALTH_CHECK === "1";
 
@@ -71,9 +82,10 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
     commitFull,
     commitMessage,
     branch,
-    commitUrl: config.github.repo && commitFull
-      ? `https://github.com/${config.github.repo}/commit/${commitFull}`
-      : "",
+    commitUrl:
+      config.github.repo && commitFull
+        ? `https://github.com/${config.github.repo}/commit/${commitFull}`
+        : "",
   };
 
   // App version + command count
@@ -84,13 +96,22 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
   const wranglerVersions = fetchWranglerVersions(config);
 
   // Load existing versions.json to preserve git metadata from previous runs
-  const existingGit: Map<string, { git?: GitInfo; commandCount?: number }> = new Map();
+  const existingGit: Map<string, { git?: GitInfo; commandCount?: number }> =
+    new Map();
   try {
-    const prev: VersionsJson = JSON.parse(readFileSync(config.output.versions_json, "utf8"));
+    const prev: VersionsJson = JSON.parse(
+      readFileSync(config.output.versions_json, "utf8"),
+    );
     for (const r of prev.versions) {
-      if (r.git) existingGit.set(r.version, { git: r.git, commandCount: r.commandCount });
+      if (r.git)
+        existingGit.set(r.version, {
+          git: r.git,
+          commandCount: r.commandCount,
+        });
     }
-  } catch { /* no existing file — that's fine */ }
+  } catch {
+    /* no existing file — that's fine */
+  }
 
   // Build releases + previews
   const releases: Release[] = [];
@@ -129,7 +150,9 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
 
   // Dedupe by version (keep latest), sort descending
   const deduped = [...new Map(releases.map((r) => [r.version, r])).values()];
-  deduped.sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true }));
+  deduped.sort((a, b) =>
+    b.version.localeCompare(a.version, undefined, { numeric: true }),
+  );
 
   // Ensure current version is present
   if (!deduped.find((v) => v.version === appVersion)) {
@@ -156,13 +179,19 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
         p.healthy = await checkHealth(p.url);
       }),
     ]);
-    const healthyCount = deduped.filter((r) => r.healthy).length + previews.filter((p) => p.healthy).length;
-    console.log(`  ${healthyCount}/${deduped.length + previews.length} URLs healthy`);
+    const healthyCount =
+      deduped.filter((r) => r.healthy).length +
+      previews.filter((p) => p.healthy).length;
+    console.log(
+      `  ${healthyCount}/${deduped.length + previews.length} URLs healthy`,
+    );
   }
 
   const out: VersionsJson = {
     production: config.urls.production,
-    github: config.github.repo ? `https://github.com/${config.github.repo}` : "",
+    github: config.github.repo
+      ? `https://github.com/${config.github.repo}`
+      : "",
     generated: new Date().toISOString(),
     versions: deduped,
     previews,
@@ -174,8 +203,11 @@ export async function generateVersionsJson(config: CfDeployConfig, opts?: { heal
     mkdirSync(outDir, { recursive: true });
   }
 
-  writeFileSync(config.output.versions_json, JSON.stringify(out, null, 2) + "\n");
+  writeFileSync(
+    config.output.versions_json,
+    JSON.stringify(out, null, 2) + "\n",
+  );
   console.log(
-    `versions.json: ${deduped.length} versions, ${previews.length} PR previews · ${commitSha} · ${branch}`
+    `versions.json: ${deduped.length} versions, ${previews.length} PR previews · ${commitSha} · ${branch}`,
   );
 }

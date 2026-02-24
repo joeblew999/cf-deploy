@@ -12,12 +12,12 @@ Wraps `wrangler` with versioning conventions: tagged uploads, one-command promot
 
 The [example/](example/) folder contains a complete, deployed Cloudflare Worker managed by cf-deploy:
 
-| What | URL |
-|------|-----|
-| **Live app** | https://cf-deploy-example.gedw99.workers.dev |
-| **Health endpoint** | https://cf-deploy-example.gedw99.workers.dev/api/health |
+| What                  | URL                                                        |
+| --------------------- | ---------------------------------------------------------- |
+| **Live app**          | https://cf-deploy-example.gedw99.workers.dev               |
+| **Health endpoint**   | https://cf-deploy-example.gedw99.workers.dev/api/health    |
 | **Versions manifest** | https://cf-deploy-example.gedw99.workers.dev/versions.json |
-| **v1.1.0 alias** | https://v1-1-0-cf-deploy-example.gedw99.workers.dev |
+| **v1.1.0 alias**      | https://v1-1-0-cf-deploy-example.gedw99.workers.dev        |
 
 Clone the repo and run it locally too:
 
@@ -32,6 +32,7 @@ bun x wrangler dev    # → http://localhost:8788
 cf-deploy covers the **complete developer lifecycle** — from local dev to production, including every team member's PR:
 
 ### Local Development
+
 ```sh
 bun x wrangler dev                         # localhost:8788
 # Version picker shows "local" badge, links to localhost
@@ -39,34 +40,40 @@ bun x wrangler dev                         # localhost:8788
 ```
 
 ### Deploy (one command)
+
 ```sh
 cf-deploy deploy                           # upload + smoke test + preview URL
 cf-deploy deploy --version 1.2.0           # deploy a specific version
 cf-deploy deploy --skip-smoke              # skip smoke test
 cf-deploy promote                          # go live when ready
 ```
+
 One command does the full cycle: upload, smoke test the preview URL, and print the link. You get a working preview URL without needing a PR.
 
 ### Tagged Releases (granular control)
+
 ```sh
 cf-deploy upload --version 1.2.0           # tagged upload, not yet live
 cf-deploy smoke                            # health + index checks
 cf-deploy promote                          # 100% traffic on v1.2.0
 cf-deploy promote --version 1.1.0          # or promote a specific tag
 ```
+
 Every tagged version gets a **permanent alias URL** (e.g. `v1-2-0-myworker.workers.dev`) — accessible forever, even after newer deploys.
 
 ### GitHub CI (push to main)
+
 ```yaml
 # .github/workflows/deploy.yml (included in example)
 - cf-deploy upload --version $VERSION
 - cf-deploy versions-json
 - cf-deploy smoke
 - cf-deploy test
-- cf-deploy promote                        # only after tests pass
+- cf-deploy promote # only after tests pass
 ```
 
 ### PR Previews
+
 ```yaml
 # .github/workflows/pr-preview.yml (included in example)
 - cf-deploy preview --pr ${{ github.event.pull_request.number }}
@@ -74,9 +81,11 @@ Every tagged version gets a **permanent alias URL** (e.g. `v1-2-0-myworker.worke
 - cf-deploy test $PREVIEW_URL
 # Bot comments the live preview URL on the PR
 ```
+
 Every open PR gets a live preview URL (e.g. `pr-42-myworker.workers.dev`). The version picker dropdown shows **all PR previews** — any team member can click to see the running result of any PR.
 
 ### Every version tracks its git commit
+
 Each entry in `versions.json` stores the **git hash, commit message, branch, and a clickable link** to the commit on GitHub. The version picker shows this metadata for every version — not just the current one. When a teammate asks "what's deployed?", the answer is one click away.
 
 ## Why Not Just Use the Cloudflare Dashboard?
@@ -105,6 +114,7 @@ All version metadata is **generated at dev/build time** and embedded as a static
 5. Git metadata (hash, message, branch, commit URL) is embedded per-version and preserved across regenerations
 
 This means:
+
 - **Self-contained** — version data is a static file on your worker, no dependency on Cloudflare's API or dashboard at runtime
 - **Fast** — no API calls, just a static JSON fetch
 - **Auditable** — `versions.json` is in your git history
@@ -113,11 +123,11 @@ This means:
 
 ## Three Layers
 
-| Layer | When | Where | What |
-|-------|------|-------|------|
-| **Dev-time CLI** | Developer runs commands | Local / CI | `cf-deploy upload`, `promote`, `rollback`, `smoke` — wraps wrangler |
-| **Build-time codegen** | Deploy pipeline | Local / CI | `cf-deploy versions-json` — generates manifest from wrangler + git |
-| **Runtime component** | Page load | Browser | `<cf-version-picker>` — vanilla Web Component, zero dependencies |
+| Layer                  | When                    | Where      | What                                                                |
+| ---------------------- | ----------------------- | ---------- | ------------------------------------------------------------------- |
+| **Dev-time CLI**       | Developer runs commands | Local / CI | `cf-deploy upload`, `promote`, `rollback`, `smoke` — wraps wrangler |
+| **Build-time codegen** | Deploy pipeline         | Local / CI | `cf-deploy versions-json` — generates manifest from wrangler + git  |
+| **Runtime component**  | Page load               | Browser    | `<cf-version-picker>` — vanilla Web Component, zero dependencies    |
 
 ## Quick Start
 
@@ -126,16 +136,19 @@ The toolkit is designed to be used without "polluting" your global system. You c
 ### 1. Run Instantly (No Installation)
 
 **Via Bun (Fastest)**
+
 ```sh
 bun x cf-deploy init --name my-worker --domain my-org.workers.dev
 ```
 
 **Via NPM**
+
 ```sh
 npx cf-deploy init --name my-worker --domain my-org.workers.dev
 ```
 
 ### 2. Standalone Binary (Zero Dependencies)
+
 If you don't use NPM or Bun, download the single executable file:
 
 ```sh
@@ -166,7 +179,7 @@ output:
   versions_json: public/versions.json
 
 smoke:
-  extra: "npm run smoke:extra"   # optional
+  extra: "npm run smoke:extra" # optional
 ```
 
 All values can be overridden by env vars (`WORKER_NAME`, `WORKER_DOMAIN`, etc.).

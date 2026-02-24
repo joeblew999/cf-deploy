@@ -14,7 +14,7 @@
   "scripts": {
     "build": "mkdir -p dist && bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile cf-deploy",
     "build-js": "mkdir -p dist && bun build ./bin/cf-deploy.ts --outfile dist/cf-deploy.js --target node --bundle",
-    "build-npm": "npm run build-js && sed -i '' '1s/bun/node/' dist/cf-deploy.js",
+    "build-npm": "npm run build-js && perl -i -pe 's/bun/node/ if $.==1' dist/cf-deploy.js",
     "build-all": "mkdir -p dist && npm run build-npm && npm run build-linux-x64 && npm run build-linux-arm64 && npm run build-macos-x64 && npm run build-macos-arm64",
     "build-linux-x64": "bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile dist/cf-deploy-linux-x64 --target bun-linux-x64",
     "build-linux-arm64": "bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile dist/cf-deploy-linux-arm64 --target bun-linux-arm64",

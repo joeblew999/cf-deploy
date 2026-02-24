@@ -12,7 +12,7 @@ app.get("/api/health", (c) =>
     status: "ok",
     version: "1.1.0",
     timestamp: new Date().toISOString(),
-  })
+  }),
 );
 
 // Serve static assets for all other routes

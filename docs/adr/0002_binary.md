@@ -6,6 +6,7 @@
 ## Problem
 
 The current distribution method (cloning into `.src/cf-deploy/`) requires consumers to manage the tool's source code within their own repository. While this avoids registry dependencies, it has several drawbacks:
+
 - Consumers must have Bun installed to execute the `.ts` source.
 - Tool updates require `git pull` within the vendored directory.
 - The consumer's repository is cluttered with the tool's internal logic and dependencies.
@@ -19,6 +20,7 @@ We will leverage Bun's native compilation capabilities (`bun build --compile`) t
 ## Implementation Strategy
 
 ### 1. Embedded Templates
+
 To ensure the binary is truly standalone, any "scaffolded" code or templates are embedded using Bun's "Text Imports". For example, the version picker component:
 
 ```typescript
@@ -28,12 +30,15 @@ writeFileSync(join(cwd, "public", "version-picker.js"), versionPickerSource);
 ```
 
 ### 2. Compilation
+
 The binary will be built using the following command:
+
 ```bash
 bun build --compile --minify --sourcemap ./bin/cf-deploy.ts --outfile cf-deploy
 ```
 
 ### 3. Distribution
+
 Binaries for different architectures (Linux, macOS) will be attached as assets to GitHub Releases.
 
 ## Consequences
@@ -45,10 +50,10 @@ Binaries for different architectures (Linux, macOS) will be attached as assets t
 
 ## Alternatives Considered
 
-| Alternative | Why not |
-|-------------|---------|
-| **Tarball via GitHub** | Requires `bun add <url>`, still depends on `node_modules` and local Bun runtime for execution. |
-| **npm Registry** | Introduces dependency on a third-party registry and publish overhead. |
+| Alternative              | Why not                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| **Tarball via GitHub**   | Requires `bun add <url>`, still depends on `node_modules` and local Bun runtime for execution.               |
+| **npm Registry**         | Introduces dependency on a third-party registry and publish overhead.                                        |
 | **Current Clone Method** | Retained as an option for developers who want to modify the tool, but binary is preferred for general usage. |
 
 ## Consumer Usage

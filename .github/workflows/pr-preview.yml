@@ -23,6 +23,7 @@ jobs:
           echo "$(pwd)" >> $GITHUB_PATH
 
       - name: Upload PR preview
+        if: env.CLOUDFLARE_API_TOKEN != ''
         id: preview
         working-directory: example
         env:
@@ -32,14 +33,20 @@ jobs:
           echo "url=https://pr-${{ github.event.pull_request.number }}-cf-deploy-example.gedw99.workers.dev" >> "$GITHUB_OUTPUT"
 
       - name: Smoke test PR preview
+        if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
         run: cf-deploy smoke "${{ steps.preview.outputs.url }}"
 
       - name: Playwright tests against PR preview
+        if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
         run: |
           bun x playwright install --with-deps chromium
           cf-deploy test "${{ steps.preview.outputs.url }}"
+
+      - name: Inform missing token
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "Skipping PR preview because CLOUDFLARE_API_TOKEN is not set."
 
       - name: Comment preview URL on PR
         uses: actions/github-script@v7

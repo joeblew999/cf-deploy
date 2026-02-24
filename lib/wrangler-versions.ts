@@ -12,7 +12,9 @@ export interface WranglerVersion {
 }
 
 /** Run `wrangler versions list` and parse the output into structured entries. */
-export function fetchWranglerVersions(config: CfDeployConfig): WranglerVersion[] {
+export function fetchWranglerVersions(
+  config: CfDeployConfig,
+): WranglerVersion[] {
   const raw = wrangler(config, ["versions", "list"], {
     encoding: "utf8",
     stdio: ["pipe", "pipe", "pipe"],

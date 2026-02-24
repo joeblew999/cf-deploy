@@ -22,7 +22,10 @@ function syncWebAssets(config: CfDeployConfig) {
   writeFileSync(dest, versionPickerSource);
 }
 
-export function upload(config: CfDeployConfig, opts: { version?: string; tag?: string }) {
+export function upload(
+  config: CfDeployConfig,
+  opts: { version?: string; tag?: string },
+) {
   const version = opts.version || getAppVersion(config);
   const slug = version.replaceAll(".", "-").toLowerCase();
 
@@ -31,9 +34,23 @@ export function upload(config: CfDeployConfig, opts: { version?: string; tag?: s
 
   const args = ["versions", "upload"];
   if (opts.tag) {
-    args.push("--tag", opts.tag, "--message", opts.tag, "--preview-alias", opts.tag);
+    args.push(
+      "--tag",
+      opts.tag,
+      "--message",
+      opts.tag,
+      "--preview-alias",
+      opts.tag,
+    );
   } else if (version && version !== "0.0.0") {
-    args.push("--tag", `v${version}`, "--message", `v${version}`, "--preview-alias", `v${slug}`);
+    args.push(
+      "--tag",
+      `v${version}`,
+      "--message",
+      `v${version}`,
+      "--preview-alias",
+      `v${slug}`,
+    );
   }
 
   console.log(`Uploading${version !== "0.0.0" ? ` v${version}` : ""}...`);

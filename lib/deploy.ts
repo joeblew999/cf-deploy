@@ -9,7 +9,10 @@ import type { CfDeployConfig } from "./config.ts";
 import { getAppVersion } from "./version-source.ts";
 import { versionAliasUrl, workerUrl } from "./urls.ts";
 
-export async function deploy(config: CfDeployConfig, opts: { version?: string; tag?: string; skipSmoke?: boolean }) {
+export async function deploy(
+  config: CfDeployConfig,
+  opts: { version?: string; tag?: string; skipSmoke?: boolean },
+) {
   const version = opts.version || getAppVersion(config);
   const tag = opts.tag;
 

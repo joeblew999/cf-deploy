@@ -44,7 +44,9 @@ function readAssetsDirFromWrangler(workerDir: string): string | undefined {
 /** Find repo root via git from given dir, fallback to cwd */
 function findRoot(fromDir?: string): string {
   try {
-    const opts = fromDir ? { encoding: "utf8" as const, cwd: fromDir } : { encoding: "utf8" as const };
+    const opts = fromDir
+      ? { encoding: "utf8" as const, cwd: fromDir }
+      : { encoding: "utf8" as const };
     return execSync("git rev-parse --show-toplevel", opts).trim();
   } catch {
     return process.cwd();
@@ -75,7 +77,9 @@ function parseSimpleYaml(text: string): Record<string, string> {
 
     const nestedMatch = line.match(/^\s+(\w+):\s+(.+)/);
     if (nestedMatch && currentSection) {
-      result[`${currentSection}.${nestedMatch[1]}`] = nestedMatch[2].trim().replace(/^["']|["']$/g, "");
+      result[`${currentSection}.${nestedMatch[1]}`] = nestedMatch[2]
+        .trim()
+        .replace(/^["']|["']$/g, "");
     }
   }
   return result;
@@ -108,12 +112,16 @@ export function loadConfig(configPath?: string): CfDeployConfig {
     }
   }
 
-  const workerDir = resolve(configDir, process.env.WORKER_DIR || yaml["worker.dir"] || ".");
+  const workerDir = resolve(
+    configDir,
+    process.env.WORKER_DIR || yaml["worker.dir"] || ".",
+  );
 
   return {
     worker: {
       name: process.env.WORKER_NAME || yaml["worker.name"] || "my-worker",
-      domain: process.env.WORKER_DOMAIN || yaml["worker.domain"] || "workers.dev",
+      domain:
+        process.env.WORKER_DOMAIN || yaml["worker.domain"] || "workers.dev",
       dir: workerDir,
     },
     urls: {
@@ -123,16 +131,27 @@ export function loadConfig(configPath?: string): CfDeployConfig {
       repo: process.env.GITHUB_REPO || yaml["github.repo"] || "",
     },
     version: {
-      source: resolve(configDir, process.env.SCHEMA_FILE || yaml["version.source"] || "package.json"),
+      source: resolve(
+        configDir,
+        process.env.SCHEMA_FILE || yaml["version.source"] || "package.json",
+      ),
     },
     output: {
-      versions_json: resolve(configDir, process.env.OUTPUT_FILE || yaml["output.versions_json"] || "versions.json"),
+      versions_json: resolve(
+        configDir,
+        process.env.OUTPUT_FILE ||
+          yaml["output.versions_json"] ||
+          "versions.json",
+      ),
     },
     smoke: {
       extra: process.env.SMOKE_EXTRA_CMD || yaml["smoke.extra"],
     },
     assets: {
-      dir: resolve(workerDir, yaml["assets.dir"] || readAssetsDirFromWrangler(workerDir) || "public"),
+      dir: resolve(
+        workerDir,
+        yaml["assets.dir"] || readAssetsDirFromWrangler(workerDir) || "public",
+      ),
     },
     rootDir: process.env.ROOT_DIR || findRoot(workerDir),
   };

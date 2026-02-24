@@ -33,7 +33,7 @@ version:
 
 output:
   versions_json: public/versions.json
-`
+`,
   );
 
   // wrangler.toml (only if not present)
@@ -51,7 +51,7 @@ directory = "public"
 
 [dev]
 port = 8788
-`
+`,
     );
   }
 
@@ -77,7 +77,7 @@ app.get("/api/health", (c) =>
 app.all("*", async (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default app;
-`
+`,
     );
   }
 
@@ -129,7 +129,7 @@ export default app;
   </script>
 </body>
 </html>
-`
+`,
     );
   }
 
@@ -146,15 +146,17 @@ export default app;
           devDependencies: { wrangler: "^4" },
         },
         null,
-        2
-      ) + "\n"
+        2,
+      ) + "\n",
     );
   }
 
   console.log(`Initialized cf-deploy project: ${name}`);
   console.log(`\nNext steps:`);
   console.log(`  bun install`);
-  console.log(`  bun x wrangler dev           # local dev at http://localhost:8788`);
+  console.log(
+    `  bun x wrangler dev           # local dev at http://localhost:8788`,
+  );
   console.log(`  cf-deploy upload --version 1.0.0`);
   console.log(`  cf-deploy versions-json`);
   console.log(`  cf-deploy smoke`);

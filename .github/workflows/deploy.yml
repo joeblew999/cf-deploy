@@ -23,41 +23,52 @@ jobs:
           echo "$(pwd)" >> $GITHUB_PATH
 
       - name: Upload version
+        if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: cf-deploy upload
 
       - name: Generate versions.json
+        if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: cf-deploy versions-json
 
       - name: Redeploy with updated manifest
+        if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: cf-deploy upload
 
       - name: Regenerate versions.json with final version ID
+        if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: cf-deploy versions-json
 
       - name: Smoke test
+        if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
         run: cf-deploy smoke
 
       - name: Playwright tests
+        if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
         run: |
           bun x playwright install --with-deps chromium
           cf-deploy test
 
       - name: Promote to production
+        if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: example
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: cf-deploy promote
+
+      - name: Inform missing token
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "Skipping deployment because CLOUDFLARE_API_TOKEN is not set."

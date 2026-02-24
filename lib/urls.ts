@@ -9,7 +9,10 @@ export function workerUrl(config: CfDeployConfig, prefix: string): string {
 }
 
 /** Build the alias URL for a semver version string (e.g. "1.2.0" → "v1-2-0-..."). */
-export function versionAliasUrl(config: CfDeployConfig, version: string): string {
+export function versionAliasUrl(
+  config: CfDeployConfig,
+  version: string,
+): string {
   const slug = version.replaceAll(".", "-").toLowerCase();
   return workerUrl(config, `v${slug}`);
 }

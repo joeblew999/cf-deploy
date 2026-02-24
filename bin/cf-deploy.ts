@@ -24,10 +24,23 @@ import { deploy } from "../lib/deploy.ts";
 import { upload } from "../lib/upload.ts";
 import { promote } from "../lib/promote.ts";
 import { smoke } from "../lib/smoke.ts";
-import { generateVersionsJson, printLatest, printLatestEnv } from "../lib/versions.ts";
+import {
+  generateVersionsJson,
+  printLatest,
+  printLatestEnv,
+} from "../lib/versions.ts";
 import { preview } from "../lib/preview.ts";
 import { list } from "../lib/list.ts";
-import { rollback, canary, status, versionsList, tail, secretList, whoami, deleteWorker } from "../lib/wrangler.ts";
+import {
+  rollback,
+  canary,
+  status,
+  versionsList,
+  tail,
+  secretList,
+  whoami,
+  deleteWorker,
+} from "../lib/wrangler.ts";
 import { runTests } from "../lib/test.ts";
 import { init } from "../lib/init.ts";
 import pkg from "../package.json";
@@ -46,7 +59,10 @@ function hasFlag(name: string): boolean {
   return args.includes(name);
 }
 
-if (args.length === 1 && (args[0] === "--version" || args[0] === "-v" || args[0] === "version")) {
+if (
+  args.length === 1 &&
+  (args[0] === "--version" || args[0] === "-v" || args[0] === "version")
+) {
   console.log(pkg.version);
   process.exit(0);
 }
@@ -58,7 +74,9 @@ if (args[0] === "init") {
   const name = getFlag("--name");
   const domain = getFlag("--domain");
   if (!name || !domain) {
-    console.error("Usage: cf-deploy init --name my-worker --domain example.workers.dev");
+    console.error(
+      "Usage: cf-deploy init --name my-worker --domain example.workers.dev",
+    );
     process.exit(1);
   }
   init(name, domain);
@@ -104,7 +122,7 @@ Options:
 }
 
 /** Get the first positional arg after the command (e.g. `smoke URL`) */
-const positionalArg = args.slice(1).find(a => !a.startsWith("-"));
+const positionalArg = args.slice(1).find((a) => !a.startsWith("-"));
 
 switch (command) {
   case "deploy":
@@ -141,7 +159,9 @@ switch (command) {
     } else if (hasFlag("--latest-env")) {
       printLatestEnv(config);
     } else {
-      await generateVersionsJson(config, { healthCheck: hasFlag("--health-check") });
+      await generateVersionsJson(config, {
+        healthCheck: hasFlag("--health-check"),
+      });
     }
     break;
 
@@ -188,6 +208,8 @@ switch (command) {
     break;
 
   default:
-    console.error(`Unknown command: ${command}\nRun 'cf-deploy --help' for usage.`);
+    console.error(
+      `Unknown command: ${command}\nRun 'cf-deploy --help' for usage.`,
+    );
     process.exit(1);
 }

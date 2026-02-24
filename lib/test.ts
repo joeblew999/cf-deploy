@@ -13,16 +13,22 @@ export function runTests(config: CfDeployConfig, urlArg?: string) {
 
   if (!url) {
     try {
-      const data: VersionsJson = JSON.parse(readFileSync(config.output.versions_json, "utf8"));
+      const data: VersionsJson = JSON.parse(
+        readFileSync(config.output.versions_json, "utf8"),
+      );
       const latest = data.versions[0];
       if (latest) url = latest.url;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   if (!url) url = config.urls.production;
 
   if (!url) {
-    console.error("ERROR: No URL to test. Pass a URL or set urls.production in cf-deploy.yml");
+    console.error(
+      "ERROR: No URL to test. Pass a URL or set urls.production in cf-deploy.yml",
+    );
     process.exit(1);
   }
 

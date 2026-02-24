@@ -9,8 +9,16 @@ export function preview(config: CfDeployConfig, prNumber: string) {
   const tag = `pr-${prNumber}`;
   console.log(`Uploading PR preview (${tag})...`);
 
-  const args = ["versions", "upload",
-    "--tag", tag, "--message", `PR #${prNumber}`, "--preview-alias", tag];
+  const args = [
+    "versions",
+    "upload",
+    "--tag",
+    tag,
+    "--message",
+    `PR #${prNumber}`,
+    "--preview-alias",
+    tag,
+  ];
   wrangler(config, args);
 
   console.log(`\nPreview: ${workerUrl(config, tag)}`);

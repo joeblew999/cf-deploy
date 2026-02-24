@@ -8,7 +8,9 @@ import type { VersionsJson } from "./types.ts";
 
 async function checkHealth(url: string): Promise<string> {
   try {
-    const res = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(`${url}/api/health`, {
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const body = (await res.json()) as { version?: string };
     const version = body.version || "?";
@@ -51,7 +53,9 @@ export async function smoke(config: CfDeployConfig, urlArg?: string) {
 
   if (!url) {
     try {
-      const data: VersionsJson = JSON.parse(readFileSync(config.output.versions_json, "utf8"));
+      const data: VersionsJson = JSON.parse(
+        readFileSync(config.output.versions_json, "utf8"),
+      );
       const latest = data.versions[0];
       if (latest) {
         url = latest.url;
@@ -64,7 +68,9 @@ export async function smoke(config: CfDeployConfig, urlArg?: string) {
 
   url = url || config.urls.production;
   if (!url) {
-    console.error("ERROR: No URL to smoke test. Pass a URL or set urls.production in cf-deploy.yml");
+    console.error(
+      "ERROR: No URL to smoke test. Pass a URL or set urls.production in cf-deploy.yml",
+    );
     process.exit(1);
   }
 
@@ -78,7 +84,9 @@ export async function smoke(config: CfDeployConfig, urlArg?: string) {
   if (expectedVersion && healthVersion === expectedVersion) {
     console.log(`PASS: All checks passed (v${expectedVersion})`);
   } else if (expectedVersion) {
-    console.log(`WARN: Version mismatch — expected v${expectedVersion}, got v${healthVersion}`);
+    console.log(
+      `WARN: Version mismatch — expected v${expectedVersion}, got v${healthVersion}`,
+    );
   } else {
     console.log(`PASS: All checks passed (v${healthVersion})`);
   }

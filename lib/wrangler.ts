@@ -7,9 +7,20 @@ import type { CfDeployConfig } from "./config.ts";
 import type { VersionsJson } from "./types.ts";
 
 /** Execute a wrangler command with the correct --name and working directory */
-export function wrangler(config: CfDeployConfig, args: string[], options: ExecSyncOptions = {}) {
-  const fullArgs = ["bun", "x", "wrangler", ...args, "--name", config.worker.name];
-  return execSync(fullArgs.map(a => `"${a}"`).join(" "), {
+export function wrangler(
+  config: CfDeployConfig,
+  args: string[],
+  options: ExecSyncOptions = {},
+) {
+  const fullArgs = [
+    "bun",
+    "x",
+    "wrangler",
+    ...args,
+    "--name",
+    config.worker.name,
+  ];
+  return execSync(fullArgs.map((a) => `"${a}"`).join(" "), {
     cwd: config.worker.dir,
     stdio: "inherit",
     ...options,
@@ -23,7 +34,9 @@ export function rollback(config: CfDeployConfig) {
     data = JSON.parse(readFileSync(config.output.versions_json, "utf8"));
   } catch {
     // Fallback to interactive wrangler rollback if no versions.json
-    console.log("No versions.json — falling back to interactive wrangler rollback");
+    console.log(
+      "No versions.json — falling back to interactive wrangler rollback",
+    );
     wrangler(config, ["rollback"]);
     return;
   }
@@ -43,7 +56,9 @@ export function rollback(config: CfDeployConfig) {
 
   const curSha = current.git?.commitSha || "?";
   const prevSha = previous.git?.commitSha || "?";
-  console.log(`Rolling back: ${current.tag} (${curSha}) → ${previous.tag} (${prevSha})`);
+  console.log(
+    `Rolling back: ${current.tag} (${curSha}) → ${previous.tag} (${prevSha})`,
+  );
   console.log(`  Review: ${previous.git?.commitUrl || "no commit link"}\n`);
   const vid = previous.versionId;
   wrangler(config, ["versions", "deploy", `${vid}@100%`, "--yes"]);
@@ -77,9 +92,9 @@ export function deleteWorker(config: CfDeployConfig, force: boolean = false) {
   console.log(`Deleting worker: ${config.worker.name}`);
   if (force) {
     // Pipe 'yes' for non-interactive deletion
-    execSync(`yes | bun x wrangler delete --name "${config.worker.name}"`, { 
-      cwd: config.worker.dir, 
-      stdio: "inherit" 
+    execSync(`yes | bun x wrangler delete --name "${config.worker.name}"`, {
+      cwd: config.worker.dir,
+      stdio: "inherit",
     });
   } else {
     wrangler(config, ["delete"]);
