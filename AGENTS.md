@@ -47,26 +47,40 @@ web/
 - Version-picker component must stay zero-dependency vanilla JS
 - Health endpoint reads `env.APP_VERSION` (injected by `--var`), never hardcoded
 
+## Examples
+
+3 example projects — integration tests run the real toolkit against all of them:
+
+```
+example/                     Live deployed project (Hono + DaisyUI)
+examples/from-scratch/       New project — same as cf-deploy init
+examples/existing-worker/    Existing project — plain fetch handler, no framework
+```
+
 ## Testing
 
 ```
 tests/
-  unit/               bun test (bunfig.toml scopes here)
-    wrangler.test.ts  URL builders, parseWranglerOutput
-    config.test.ts    loadConfig, readVersion with real temp files
-    integration.test.ts  builds bundle, runs init, validates example/
-  e2e/                bun x playwright test (needs TARGET_URL)
-    deploy.spec.ts    /api/health, /versions.json, version-picker
+  unit/                  Pure function tests
+    wrangler.test.ts     URL builders, parseWranglerOutput
+    config.test.ts       loadConfig, readVersion
+  integration/           Real toolkit tests — runs cf-deploy against all 3 examples
+    integration.test.ts  Copies examples to /tmp, installs deps, runs:
+                           syncWebAssets, wrangler dry-run, versions-json,
+                           upload, smoke, promote (with auth)
+  e2e/                   Playwright against live deployment
+    deploy.spec.ts       /api/health, /versions.json, version-picker
 ```
 
-- `bun test` — unit + integration (no network, no auth)
-- `bun run test:e2e` — E2E against a live deployment
+- `bun run test` — unit + integration (with auth: runs full deploy cycle)
+- `bun run test:e2e` — E2E via playwright against PROD_URL
+- Auth detected automatically (wrangler OAuth or CLOUDFLARE_API_TOKEN)
 
 ## Development
 
 1. Edit `lib/`, `bin/`, or `web/`
 2. `bun run build` — build the JS bundle
-3. `bun test` — unit + integration (no auth needed)
+3. `bun run test` — unit + integration (runs toolkit for real)
 4. `bun run check` — typecheck + tests
 
 ## Full Deploy Cycle (local or CI)

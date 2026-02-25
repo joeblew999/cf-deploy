@@ -13,9 +13,9 @@
   "scripts": {
     "build": "mkdir -p dist && bun build ./bin/cf-deploy.ts --outfile dist/cf-deploy.js --target bun --bundle",
     "typecheck": "bun x tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test tests/unit tests/integration",
     "test:e2e": "bun x playwright install --with-deps chromium && bun x playwright test",
-    "check": "bun run typecheck && bun test",
+    "check": "bun run typecheck && bun run test",
     "ci:build": "bun install && bun run build && for d in example examples/from-scratch examples/existing-worker; do (cd $d && bun install); done",
     "ci:deploy": ": ${PROD_URL:?PROD_URL required} && CF=../dist/cf-deploy.js && cd example && bun $CF versions-json && bun $CF upload && bun $CF smoke $PROD_URL && bun $CF promote",
     "ci:e2e": "TARGET_URL=${PROD_URL:?PROD_URL required} bun run test:e2e",
