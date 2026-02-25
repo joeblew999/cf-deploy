@@ -5,7 +5,6 @@ test-results/
 tmp_*/
 
 # Build outputs
-dist/
 cf-deploy
 .*.bun-build
 bun.lockb

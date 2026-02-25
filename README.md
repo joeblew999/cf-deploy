@@ -16,11 +16,8 @@ From your worker project:
 
 ```sh
 bun add -d github:joeblew999/cf-deploy
-bun pm trust cf-deploy && bun install   # allow build script to run
 bun x cf-deploy --help
 ```
-
-Bun blocks lifecycle scripts from git packages by default. `bun pm trust` whitelists cf-deploy so the `prepare` script can build the CLI. You only need to do this once — it's saved in your `package.json`.
 
 To remove:
 
