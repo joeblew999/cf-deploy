@@ -1,0 +1,57 @@
+# .mise.toml — cf-deploy toolkit
+#
+# Standard mise contract: install → build → test → ci → deploy
+# Secrets: managed via Doppler → .env (gitignored)
+#   Setup: DOPPLER_TOKEN=<token> mise run secrets:pull
+
+[tools]
+bun  = "latest"
+node = "22"
+
+[env]
+_.file = ".env"
+
+# ── Install ───────────────────────────────────────────────────────────────────
+
+[tasks.install]
+description = "Install JS deps"
+run = "bun install && for d in example examples/from-scratch examples/existing-worker; do (cd $d && bun install); done"
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+
+[tasks.build]
+description = "Build cf-deploy CLI"
+depends = ["install"]
+run = "bun run build"
+
+# ── Test ──────────────────────────────────────────────────────────────────────
+
+[tasks.test]
+description = "Typecheck + unit + integration tests"
+depends = ["build"]
+run = "bun run check"
+
+[tasks."test:e2e"]
+description = "E2e tests (requires PROD_URL env var)"
+depends = ["build"]
+run = "bun run test:e2e"
+
+# ── CI ────────────────────────────────────────────────────────────────────────
+
+[tasks.ci]
+description = "Full CI gate — install → build → test"
+depends = ["install"]
+run = "bun run ci:build && bun run check"
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+
+[tasks."secrets:pull"]
+description = "Pull secrets from Doppler → .env"
+run = """
+if [ -n "${DOPPLER_TOKEN:-}" ]; then
+  doppler secrets download --no-file --format env --project plat-trunk --config dev --token "$DOPPLER_TOKEN" > .env
+else
+  doppler secrets download --no-file --format env --project plat-trunk --config dev > .env
+fi
+echo "✓ .env updated from Doppler"
+"""
